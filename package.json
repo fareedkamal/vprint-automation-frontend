@@ -30,9 +30,9 @@
     "next": "16.0.0",
     "nuqs": "^2.5.1",
     "radix-ui": "latest",
-    "react": "19.2.0",
+    "react": "19.2.1",
     "react-day-picker": "9.8.0",
-    "react-dom": "19.2.0",
+    "react-dom": "19.2.1",
     "react-hook-form": "7.56.2",
     "react-hot-toast": "^2.5.2",
     "react-resizable-panels": "^2.1.7",
@@ -69,6 +69,12 @@
     "overrides": {
       "@types/react": "19.2.2",
       "@types/react-dom": "19.2.2"
-    }
+    },
+    "ignoredBuiltDependencies": [
+      "msw"
+    ],
+    "onlyBuiltDependencies": [
+      "sharp"
+    ]
   }
 }
