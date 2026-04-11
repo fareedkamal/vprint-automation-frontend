@@ -11,7 +11,7 @@ import {
 } from "lucide-react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { useState } from "react"
+import { useRef, useState } from "react"
 import { Button } from "@/components/ui/button"
 import {
   Card,
@@ -35,10 +35,34 @@ const NAV = [
 
 // ── JWT gate: shown when no token is stored ───────────────────────────────────
 
+function normalizePastedJwt(raw: string): string {
+  let t = raw.trim()
+  if (t.toLowerCase().startsWith("bearer ")) t = t.slice(7).trim()
+  return t
+}
+
 function JwtGate({ children }: { children: React.ReactNode }) {
   const { jwt, setJwt } = useDashboardAuth()
   const [input, setInput] = useState("")
   const [show, setShow] = useState(false)
+  const [hint, setHint] = useState<string | null>(null)
+  const inputRef = useRef<HTMLInputElement>(null)
+
+  function readTokenFromField(): string {
+    return normalizePastedJwt(inputRef.current?.value ?? input)
+  }
+
+  function trySubmit() {
+    const token = readTokenFromField()
+    if (!token) {
+      setHint(
+        "Paste your JWT above, then try again (password managers sometimes fill the field without enabling the button — click again after typing)."
+      )
+      return
+    }
+    setHint(null)
+    setJwt(token)
+  }
 
   if (!jwt) {
     return (
@@ -62,12 +86,23 @@ function JwtGate({ children }: { children: React.ReactNode }) {
           <CardContent className="space-y-3">
             <div className="relative">
               <Input
+                ref={inputRef}
                 type={show ? "text" : "password"}
                 placeholder="Paste JWT token…"
                 value={input}
-                onChange={(e) => setInput(e.target.value)}
+                onChange={(e) => {
+                  setInput(e.target.value)
+                  setHint(null)
+                }}
+                onInput={(e) => {
+                  setInput(e.currentTarget.value)
+                  setHint(null)
+                }}
+                onBlur={(e) => {
+                  setInput(e.currentTarget.value)
+                }}
                 onKeyDown={(e) => {
-                  if (e.key === "Enter" && input.trim()) setJwt(input.trim())
+                  if (e.key === "Enter") trySubmit()
                 }}
                 className="pr-10"
               />
@@ -83,11 +118,12 @@ function JwtGate({ children }: { children: React.ReactNode }) {
                 )}
               </button>
             </div>
-            <Button
-              className="w-full"
-              disabled={!input.trim()}
-              onClick={() => setJwt(input.trim())}
-            >
+            {hint && (
+              <p className="text-xs text-amber-700 dark:text-amber-400">
+                {hint}
+              </p>
+            )}
+            <Button className="w-full" onClick={trySubmit}>
               Access Dashboard
             </Button>
             <p className="text-xs text-muted-foreground text-center">
