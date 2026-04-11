@@ -1,0 +1,308 @@
+"use client"
+
+import { RefreshCw, Search, X } from "lucide-react"
+import Link from "next/link"
+import { useState } from "react"
+import { Button } from "@/components/ui/button"
+import { Card, CardContent } from "@/components/ui/card"
+import { Input } from "@/components/ui/input"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+import { Skeleton } from "@/components/ui/skeleton"
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table"
+import { useDashboardQuery } from "@/hooks/use-dashboard-api"
+import { cn } from "@/lib/utils"
+import type { EventsResponse, EventTypesResponse } from "@/types/dashboard"
+
+const EVENT_TABLE_SKELETON_KEYS = [
+  "et1",
+  "et2",
+  "et3",
+  "et4",
+  "et5",
+  "et6",
+  "et7",
+  "et8",
+  "et9",
+  "et10",
+  "et11",
+  "et12",
+] as const
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
+const EVENT_COLORS: Record<string, string> = {
+  order_run_start:
+    "bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300",
+  order_run_end:
+    "bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300",
+  order_checkout_start:
+    "bg-purple-100 text-purple-800 dark:bg-purple-900/40 dark:text-purple-300",
+  queue_snapshot:
+    "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300",
+  woo_webhook: "bg-sky-100 text-sky-800 dark:bg-sky-900/40 dark:text-sky-300",
+}
+
+function EventTypePill({ type }: { type: string }) {
+  return (
+    <span
+      className={cn(
+        "inline-flex items-center rounded-full px-2 py-0.5 text-xs font-mono font-medium",
+        EVENT_COLORS[type] ??
+          "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300"
+      )}
+    >
+      {type}
+    </span>
+  )
+}
+
+// ── Page ──────────────────────────────────────────────────────────────────────
+
+export default function EventsPage() {
+  const [wooIdInput, setWooIdInput] = useState("")
+  const [applied, setApplied] = useState<{ wooId?: string; type?: string }>({})
+  const [limit, setLimit] = useState(80)
+
+  const { data: typesData } = useDashboardQuery<EventTypesResponse>(
+    "internal/dashboard/events/event-types",
+    { staleTime: 60_000 }
+  )
+
+  const sp: Record<string, string | number | boolean> = { limit }
+  if (applied.wooId) sp.woo_order_id = applied.wooId
+  if (applied.type) sp.event_type = applied.type
+
+  const { data, isLoading, error, refetch, isFetching } =
+    useDashboardQuery<EventsResponse>("internal/dashboard/events", {
+      searchParams: sp,
+      refetchInterval: 15_000,
+    })
+
+  function applyFilter() {
+    setApplied((prev) => ({
+      ...prev,
+      wooId: wooIdInput.trim() || undefined,
+    }))
+    setLimit(80)
+  }
+
+  function clearFilter() {
+    setWooIdInput("")
+    setApplied({})
+  }
+
+  const hasFilter = !!(applied.wooId || applied.type)
+
+  return (
+    <div className="p-6 space-y-4">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-xl font-semibold tracking-tight">
+            Automation Events
+          </h2>
+          <p className="text-sm text-muted-foreground">
+            {data ? `${data.events.length} events` : "Loading…"}
+          </p>
+        </div>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => refetch()}
+          disabled={isFetching}
+        >
+          <RefreshCw className={cn("h-4 w-4", isFetching && "animate-spin")} />
+        </Button>
+      </div>
+
+      {/* Filters */}
+      <Card>
+        <CardContent className="pt-4 pb-3">
+          <div className="flex flex-wrap items-end gap-3">
+            <div className="flex-1 min-w-36">
+              <label
+                className="text-xs text-muted-foreground mb-1 block"
+                htmlFor="dashboard-events-woo-id"
+              >
+                Woo Order ID
+              </label>
+              <Input
+                id="dashboard-events-woo-id"
+                placeholder="e.g. 22305"
+                value={wooIdInput}
+                onChange={(e) => setWooIdInput(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && applyFilter()}
+              />
+            </div>
+            <div className="flex-1 min-w-52">
+              <label
+                className="text-xs text-muted-foreground mb-1 block"
+                htmlFor="event-type-select"
+              >
+                Event Type
+              </label>
+              <Select
+                value={applied.type ?? "__all__"}
+                onValueChange={(v) => {
+                  setApplied((prev) => ({
+                    ...prev,
+                    type: v === "__all__" ? undefined : v,
+                  }))
+                  setLimit(80)
+                }}
+              >
+                <SelectTrigger id="event-type-select" className="w-full">
+                  <SelectValue placeholder="All types" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__all__">All types</SelectItem>
+                  {(typesData?.event_types ?? []).map((t) => (
+                    <SelectItem key={t} value={t}>
+                      {t}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <Button size="sm" onClick={applyFilter}>
+              <Search className="h-4 w-4 mr-1.5" />
+              Filter
+            </Button>
+            {hasFilter && (
+              <Button variant="ghost" size="sm" onClick={clearFilter}>
+                <X className="h-4 w-4 mr-1" />
+                Clear
+              </Button>
+            )}
+          </div>
+          {hasFilter && (
+            <p className="text-xs text-muted-foreground mt-2">
+              Filtering by
+              {applied.wooId && <> Woo #{applied.wooId}</>}
+              {applied.wooId && applied.type && " ·"}
+              {applied.type && (
+                <>
+                  {" "}
+                  type = <code>{applied.type}</code>
+                </>
+              )}
+            </p>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Error */}
+      {error && (
+        <Card className="border-red-200 dark:border-red-800">
+          <CardContent className="pt-6 text-sm text-red-600 dark:text-red-400">
+            {error.message}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Skeleton */}
+      {isLoading && (
+        <div className="space-y-2">
+          {EVENT_TABLE_SKELETON_KEYS.map((rowKey) => (
+            <Skeleton key={rowKey} className="h-12 w-full rounded-lg" />
+          ))}
+        </div>
+      )}
+
+      {/* Table */}
+      {data && (
+        <Card>
+          <CardContent className="p-0">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-40">Timestamp</TableHead>
+                  <TableHead className="w-52">Event Type</TableHead>
+                  <TableHead className="w-28">Woo #</TableHead>
+                  <TableHead>Message</TableHead>
+                  <TableHead className="w-20">Payload</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {data.events.length === 0 && (
+                  <TableRow>
+                    <TableCell
+                      colSpan={5}
+                      className="text-center text-muted-foreground py-14 text-sm"
+                    >
+                      No events found.
+                    </TableCell>
+                  </TableRow>
+                )}
+                {data.events.map((event) => (
+                  <TableRow key={event.id}>
+                    <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
+                      {new Date(event.created_at).toLocaleString()}
+                    </TableCell>
+                    <TableCell>
+                      <EventTypePill type={event.event_type} />
+                    </TableCell>
+                    <TableCell>
+                      {event.woo_order_id ? (
+                        <Link
+                          href={`/dashboard/orders/${event.woo_order_id}`}
+                          className="font-mono text-sm text-blue-600 dark:text-blue-400 hover:underline"
+                        >
+                          #{event.woo_order_id}
+                        </Link>
+                      ) : (
+                        <span className="text-muted-foreground">—</span>
+                      )}
+                    </TableCell>
+                    <TableCell className="text-sm max-w-md">
+                      <span className="line-clamp-2">
+                        {event.message ?? "—"}
+                      </span>
+                    </TableCell>
+                    <TableCell>
+                      {event.payload &&
+                      Object.keys(event.payload).length > 0 ? (
+                        <details>
+                          <summary className="text-xs text-muted-foreground cursor-pointer hover:text-foreground select-none">
+                            View ›
+                          </summary>
+                          <pre className="text-xs mt-1.5 bg-gray-50 dark:bg-gray-900 rounded p-2 max-h-48 overflow-auto min-w-48">
+                            {JSON.stringify(event.payload, null, 2)}
+                          </pre>
+                        </details>
+                      ) : (
+                        <span className="text-xs text-muted-foreground">—</span>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Load more */}
+      {data && data.events.length >= limit && (
+        <div className="flex justify-center">
+          <Button variant="outline" onClick={() => setLimit((l) => l + 80)}>
+            Load more
+          </Button>
+        </div>
+      )}
+    </div>
+  )
+}
