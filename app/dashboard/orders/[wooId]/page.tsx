@@ -1,15 +1,23 @@
 "use client"
 
+import { useQueryClient } from "@tanstack/react-query"
 import {
   AlertTriangle,
+  Bug,
   CheckCircle2,
   ChevronLeft,
   Clock,
+  ExternalLink,
   Loader2,
+  Pause,
+  Play,
+  Square,
+  Timer,
   XCircle,
 } from "lucide-react"
 import Link from "next/link"
 import { use } from "react"
+import { Button } from "@/components/ui/button"
 import {
   Card,
   CardContent,
@@ -27,9 +35,14 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { useDashboardQuery } from "@/hooks/use-dashboard-api"
+import { useDashboardQuery, useOrderControl } from "@/hooks/use-dashboard-api"
 import { cn } from "@/lib/utils"
-import type { AutomationEvent, EventsResponse, Order } from "@/types/dashboard"
+import type {
+  AutomationEvent,
+  EventsResponse,
+  Order,
+  OverviewData,
+} from "@/types/dashboard"
 
 const ORDER_DETAIL_EVENTS_SKELETON_KEYS = [
   "ode1",
@@ -85,9 +98,211 @@ function StatusIcon({ status }: { status: string }) {
   return null
 }
 
+// ── Duration helper ───────────────────────────────────────────────────────────
+
+function fmtDuration(
+  startIso: string | null | undefined,
+  endIso: string | null | undefined
+): string | null {
+  if (!startIso) return null
+  const start = new Date(startIso).getTime()
+  const end = endIso ? new Date(endIso).getTime() : Date.now()
+  const secs = Math.max(0, Math.round((end - start) / 1000))
+  if (secs < 60) return `${secs}s`
+  const m = Math.floor(secs / 60)
+  const s = secs % 60
+  if (m < 60) return `${m}m ${s}s`
+  const h = Math.floor(m / 60)
+  const rm = m % 60
+  return `${h}h ${rm}m`
+}
+
+// ── Progress bar ──────────────────────────────────────────────────────────────
+
+function ProgressBar({
+  pct,
+  color = "blue",
+}: {
+  pct: number
+  color?: "blue" | "green" | "red"
+}) {
+  const bg = { blue: "bg-blue-500", green: "bg-green-500", red: "bg-red-500" }[
+    color
+  ]
+  return (
+    <div className="space-y-1">
+      <div className="flex justify-between text-xs text-muted-foreground">
+        <span>Automation progress</span>
+        <span className="font-semibold text-foreground">{pct}%</span>
+      </div>
+      <div className="h-2 rounded-full bg-border overflow-hidden">
+        <div
+          className={cn("h-full rounded-full transition-all duration-500", bg)}
+          style={{ width: `${pct}%` }}
+        />
+      </div>
+    </div>
+  )
+}
+
+// ── Live control panel (shown when order is actively running) ─────────────────
+
+function LiveControlPanel({
+  order,
+  overview,
+  onAction,
+}: {
+  order: Order
+  overview: OverviewData | undefined
+  onAction: () => void
+}) {
+  const proc = overview?.poller.processing
+  const isThisOrder = proc?.active && proc.orderId === order.id
+  const { act, pending: actionPending, error: actionError } = useOrderControl()
+
+  if (!isThisOrder) return null
+
+  const pct = proc?.progressPct ?? 0
+  const itemCount =
+    (proc?.totalItems ?? 0) > 1
+      ? `Item ${(proc?.currentItemIndex ?? 0) + 1} / ${proc?.totalItems}`
+      : null
+
+  async function handleAction(action: "pause" | "resume" | "stop") {
+    if (!order.id) return
+    if (action === "stop") {
+      if (
+        !window.confirm(
+          "Stop this order and mark it as FAILED? This cannot be undone."
+        )
+      )
+        return
+    }
+    const ok = await act(order.id, action)
+    if (ok) onAction()
+  }
+
+  return (
+    <Card className="border-blue-200 dark:border-blue-800 bg-blue-50/50 dark:bg-blue-950/20">
+      <CardContent className="pt-4 pb-4 space-y-3">
+        {/* Header row */}
+        <div className="flex items-center gap-2 flex-wrap">
+          <Loader2 className="h-4 w-4 text-blue-500 animate-spin shrink-0" />
+          <span className="text-sm font-semibold text-blue-700 dark:text-blue-300">
+            Automation running
+          </span>
+          {itemCount && (
+            <span className="text-xs bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 rounded-full px-2 py-0.5">
+              {itemCount}
+            </span>
+          )}
+          {proc?.step && (
+            <span className="text-xs font-mono text-muted-foreground">
+              step: {proc.step}
+            </span>
+          )}
+        </div>
+
+        {/* Progress */}
+        <ProgressBar pct={pct} color="blue" />
+
+        {/* Session URLs */}
+        {(proc?.streamingUrl || proc?.debugUrl) && (
+          <div className="flex flex-wrap gap-2">
+            {proc?.streamingUrl && (
+              <a
+                href={proc.streamingUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md border border-blue-300 dark:border-blue-700 text-blue-600 dark:text-blue-400 bg-white dark:bg-blue-950/30 text-xs font-medium hover:bg-blue-50 transition-colors"
+              >
+                <ExternalLink className="h-3 w-3" />
+                Live session
+              </a>
+            )}
+            {proc?.debugUrl && (
+              <a
+                href={proc.debugUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md border border-purple-300 dark:border-purple-700 text-purple-600 dark:text-purple-400 bg-white dark:bg-purple-950/30 text-xs font-medium hover:bg-purple-50 transition-colors"
+              >
+                <Bug className="h-3 w-3" />
+                Debug inspector
+              </a>
+            )}
+          </div>
+        )}
+
+        {/* Controls */}
+        <div className="flex flex-wrap gap-2 pt-1 border-t border-blue-200 dark:border-blue-800">
+          <Button
+            size="sm"
+            variant="outline"
+            className="h-7 text-xs gap-1.5 border-yellow-400 text-yellow-600 dark:text-yellow-400 bg-white dark:bg-transparent"
+            disabled={actionPending !== null}
+            onClick={() => handleAction("pause")}
+          >
+            {actionPending === "pause" ? (
+              <Loader2 className="h-3 w-3 animate-spin" />
+            ) : (
+              <Pause className="h-3 w-3" />
+            )}
+            Pause
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            className="h-7 text-xs gap-1.5 border-green-400 text-green-600 dark:text-green-400 bg-white dark:bg-transparent"
+            disabled={actionPending !== null}
+            onClick={() => handleAction("resume")}
+          >
+            {actionPending === "resume" ? (
+              <Loader2 className="h-3 w-3 animate-spin" />
+            ) : (
+              <Play className="h-3 w-3" />
+            )}
+            Resume
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            className="h-7 text-xs gap-1.5 border-red-400 text-red-600 dark:text-red-400 bg-white dark:bg-transparent"
+            disabled={actionPending !== null}
+            onClick={() => handleAction("stop")}
+          >
+            {actionPending === "stop" ? (
+              <Loader2 className="h-3 w-3 animate-spin" />
+            ) : (
+              <Square className="h-3 w-3 fill-current" />
+            )}
+            Stop &amp; fail
+          </Button>
+        </div>
+
+        {actionError && (
+          <p className="text-xs text-red-600 dark:text-red-400">
+            {actionError}
+          </p>
+        )}
+      </CardContent>
+    </Card>
+  )
+}
+
 // ── Order info ────────────────────────────────────────────────────────────────
 
-function OrderInfoCard({ order }: { order: Order }) {
+function OrderInfoCard({
+  order,
+  sessionUrl,
+  debugUrl,
+}: {
+  order: Order
+  sessionUrl?: string | null
+  debugUrl?: string | null
+}) {
+  const duration = fmtDuration(order.processing_started_at, order.completed_at)
+
   const rows: [string, React.ReactNode][] = [
     [
       "Woo Order ID",
@@ -108,7 +323,90 @@ function OrderInfoCard({ order }: { order: Order }) {
     ],
     ["Customer", order.customer_name ?? "—"],
     ["Email", order.customer_email ?? "—"],
-    ["Created", new Date(order.created_at).toLocaleString()],
+    [
+      "Created",
+      <span key="c" className="text-sm">
+        {new Date(order.created_at).toLocaleString()}
+      </span>,
+    ],
+    [
+      "Processing started",
+      order.processing_started_at ? (
+        <span key="ps" className="text-sm">
+          {new Date(order.processing_started_at).toLocaleString()}
+        </span>
+      ) : (
+        <span key="ps" className="text-muted-foreground">
+          Not started
+        </span>
+      ),
+    ],
+    [
+      "Completed at",
+      order.completed_at ? (
+        <span key="co" className="text-sm">
+          {new Date(order.completed_at).toLocaleString()}
+        </span>
+      ) : (
+        <span key="co" className="text-muted-foreground">
+          —
+        </span>
+      ),
+    ],
+    [
+      "Total duration",
+      duration ? (
+        <span key="dur" className="flex items-center gap-1.5 font-semibold">
+          <Timer className="h-3.5 w-3.5 text-muted-foreground" />
+          {duration}
+          {!order.completed_at && order.processing_started_at && (
+            <span className="text-xs text-blue-500 font-normal">(running)</span>
+          )}
+        </span>
+      ) : (
+        <span key="dur" className="text-muted-foreground">
+          —
+        </span>
+      ),
+    ],
+    [
+      "Session URL",
+      sessionUrl ? (
+        <a
+          key="session"
+          href={sessionUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-1 text-xs text-blue-600 dark:text-blue-400 hover:underline"
+        >
+          <ExternalLink className="h-3 w-3" />
+          Open live session
+        </a>
+      ) : (
+        <span key="session" className="text-muted-foreground">
+          —
+        </span>
+      ),
+    ],
+    [
+      "Debug URL",
+      debugUrl ? (
+        <a
+          key="debug"
+          href={debugUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-1 text-xs text-purple-600 dark:text-purple-400 hover:underline"
+        >
+          <Bug className="h-3 w-3" />
+          Open debug inspector
+        </a>
+      ) : (
+        <span key="debug" className="text-muted-foreground">
+          —
+        </span>
+      ),
+    ],
   ]
 
   return (
@@ -120,7 +418,7 @@ function OrderInfoCard({ order }: { order: Order }) {
         <dl className="divide-y dark:divide-gray-800">
           {rows.map(([label, value]) => (
             <div key={label} className="flex items-start gap-4 py-2.5 text-sm">
-              <dt className="w-36 text-muted-foreground shrink-0">{label}</dt>
+              <dt className="w-40 text-muted-foreground shrink-0">{label}</dt>
               <dd className="font-medium flex-1 min-w-0">{value}</dd>
             </div>
           ))}
@@ -154,6 +452,7 @@ function LineItemsTab({ order }: { order: Order }) {
                   <TableHead>Product</TableHead>
                   <TableHead className="w-16">Qty</TableHead>
                   <TableHead className="w-40">Status</TableHead>
+                  <TableHead>FS Order</TableHead>
                   <TableHead>Reason / Agent Message</TableHead>
                 </TableRow>
               </TableHeader>
@@ -174,6 +473,21 @@ function LineItemsTab({ order }: { order: Order }) {
                         <StatusIcon status={item.vendor_status} />
                         <Pill status={item.vendor_status} />
                       </div>
+                    </TableCell>
+                    <TableCell>
+                      {item.firesprint_order_url ? (
+                        <a
+                          href={item.firesprint_order_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1 text-xs text-blue-600 dark:text-blue-400 hover:underline"
+                        >
+                          <ExternalLink className="h-3 w-3" />
+                          {item.firesprint_order_id ?? "View"}
+                        </a>
+                      ) : (
+                        <span className="text-xs text-muted-foreground">—</span>
+                      )}
                     </TableCell>
                     <TableCell>
                       {item.agent_message ? (
@@ -325,21 +639,36 @@ export default function OrderDetailPage({
   params: Promise<{ wooId: string }>
 }) {
   const { wooId } = use(params)
+  const queryClient = useQueryClient()
 
   const {
     data: order,
     isLoading: orderLoading,
     error: orderError,
   } = useDashboardQuery<Order>(`internal/dashboard/orders/by-woo/${wooId}`, {
-    refetchInterval: 15_000,
+    refetchInterval: 10_000,
   })
 
   const { data: eventsData, isLoading: eventsLoading } =
     useDashboardQuery<EventsResponse>("internal/dashboard/events", {
       searchParams: { woo_order_id: wooId, limit: 100 },
       enabled: !!order,
-      refetchInterval: 15_000,
+      refetchInterval: 10_000,
     })
+
+  const { data: overview } = useDashboardQuery<OverviewData>(
+    "internal/dashboard/overview",
+    { refetchInterval: 8_000 }
+  )
+
+  function invalidateAll() {
+    queryClient.invalidateQueries({
+      queryKey: [`internal/dashboard/orders/by-woo/${wooId}`],
+    })
+    queryClient.invalidateQueries({
+      queryKey: ["internal/dashboard/overview"],
+    })
+  }
 
   // ── Loading ──
   if (orderLoading) {
@@ -365,6 +694,10 @@ export default function OrderDetailPage({
     )
   }
 
+  const isActiveOrder =
+    overview?.poller.processing.active &&
+    overview.poller.processing.orderId === order.id
+
   const failedItems = (order.order_items ?? []).filter(
     (i) => i.vendor === "FireSprint" && i.vendor_status === "failed"
   )
@@ -374,6 +707,10 @@ export default function OrderDetailPage({
   const pendingItems = (order.order_items ?? []).filter(
     (i) => i.vendor === "FireSprint" && i.vendor_status === "pending"
   )
+
+  // Progress for placed / failed orders
+  const staticPct =
+    order.status === "placed" ? 100 : order.status === "failed" ? 100 : null
 
   return (
     <div className="p-6 space-y-6">
@@ -386,7 +723,12 @@ export default function OrderDetailPage({
           <ChevronLeft className="h-5 w-5" />
         </Link>
         <div className="flex-1 min-w-0">
-          <h2 className="text-xl font-semibold">Order #{order.woo_order_id}</h2>
+          <h2 className="text-xl font-semibold flex items-center gap-2">
+            Order #{order.woo_order_id}
+            {isActiveOrder && (
+              <span className="h-2 w-2 rounded-full bg-blue-500 animate-pulse" />
+            )}
+          </h2>
           <p className="text-sm text-muted-foreground">
             {order.customer_name ?? "Unknown customer"} ·{" "}
             {order.customer_email ?? "no email"}
@@ -399,6 +741,21 @@ export default function OrderDetailPage({
           )}
         </div>
       </div>
+
+      {/* Static progress bar (placed / failed) */}
+      {staticPct !== null && !isActiveOrder && (
+        <ProgressBar
+          pct={staticPct}
+          color={order.status === "placed" ? "green" : "red"}
+        />
+      )}
+
+      {/* Live control panel */}
+      <LiveControlPanel
+        order={order}
+        overview={overview}
+        onAction={invalidateAll}
+      />
 
       {/* Alert: failed items */}
       {failedItems.length > 0 && (
@@ -430,8 +787,8 @@ export default function OrderDetailPage({
         </Card>
       )}
 
-      {/* Alert: currently processing */}
-      {processingItems.length > 0 && (
+      {/* Alert: currently processing (not live panel) */}
+      {processingItems.length > 0 && !isActiveOrder && (
         <Card className="border-blue-200 bg-blue-50 dark:border-blue-800 dark:bg-blue-950/30">
           <CardContent className="pt-4 pb-3">
             <div className="flex items-center gap-2">
@@ -491,7 +848,15 @@ export default function OrderDetailPage({
         </TabsContent>
 
         <TabsContent value="info" className="mt-4">
-          <OrderInfoCard order={order} />
+          <OrderInfoCard
+            order={order}
+            sessionUrl={
+              isActiveOrder ? overview?.poller.processing.streamingUrl : null
+            }
+            debugUrl={
+              isActiveOrder ? overview?.poller.processing.debugUrl : null
+            }
+          />
         </TabsContent>
       </Tabs>
     </div>

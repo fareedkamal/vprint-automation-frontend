@@ -1,31 +1,38 @@
 "use client"
 
 import {
-  Eye,
-  EyeOff,
+  Bell,
   LayoutDashboard,
   List,
-  Lock,
   LogOut,
   Radio,
+  UserCircle2,
 } from "lucide-react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { useRef, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
+import { DashboardAuthForm } from "@/components/dashboard/auth-form"
 import { Button } from "@/components/ui/button"
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover"
 import {
   DashboardAuthProvider,
   useDashboardAuth,
+  useDashboardQuery,
 } from "@/hooks/use-dashboard-api"
 import { cn } from "@/lib/utils"
+import type { EventsResponse } from "@/types/dashboard"
 
 const NAV = [
   { href: "/dashboard", label: "Overview", icon: LayoutDashboard, exact: true },
@@ -33,110 +40,42 @@ const NAV = [
   { href: "/dashboard/events", label: "Events", icon: Radio, exact: false },
 ] as const
 
-// ── JWT gate: shown when no token is stored ───────────────────────────────────
-
-function normalizePastedJwt(raw: string): string {
-  let t = raw.trim()
-  if (t.toLowerCase().startsWith("bearer ")) t = t.slice(7).trim()
-  return t
-}
+// ── Login gate: shown when no dashboard session ───────────────────────────────
 
 function JwtGate({ children }: { children: React.ReactNode }) {
-  const { jwt, setJwt } = useDashboardAuth()
-  const [input, setInput] = useState("")
-  const [show, setShow] = useState(false)
-  const [hint, setHint] = useState<string | null>(null)
-  const inputRef = useRef<HTMLInputElement>(null)
-
-  function readTokenFromField(): string {
-    return normalizePastedJwt(inputRef.current?.value ?? input)
-  }
-
-  function trySubmit() {
-    const token = readTokenFromField()
-    if (!token) {
-      setHint(
-        "Paste your JWT above, then try again (password managers sometimes fill the field without enabling the button — click again after typing)."
-      )
-      return
-    }
-    setHint(null)
-    setJwt(token)
-  }
+  const { jwt } = useDashboardAuth()
 
   if (!jwt) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-950 p-4">
-        <Card className="w-full max-w-md shadow-lg">
-          <CardHeader>
-            <div className="flex items-center gap-2 mb-1">
-              <Lock className="h-5 w-5 text-muted-foreground" />
-              <CardTitle>VPrint Automation Dashboard</CardTitle>
-            </div>
-            <CardDescription>
-              Paste an <strong>access JWT</strong> (HS256) signed with the same
-              value as the automation service env{" "}
-              <code className="text-xs bg-gray-100 dark:bg-gray-800 px-1 py-0.5 rounded">
-                INTERNAL_API_JWT_SECRET
-              </code>
-              . That variable is the signing <em>secret</em> on the server; do
-              not confuse it with the token string you paste here.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <div className="relative">
-              <Input
-                ref={inputRef}
-                type={show ? "text" : "password"}
-                placeholder="Paste JWT token…"
-                value={input}
-                onChange={(e) => {
-                  setInput(e.target.value)
-                  setHint(null)
-                }}
-                onInput={(e) => {
-                  setInput(e.currentTarget.value)
-                  setHint(null)
-                }}
-                onBlur={(e) => {
-                  setInput(e.currentTarget.value)
-                }}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") trySubmit()
-                }}
-                className="pr-10"
-              />
-              <button
-                type="button"
-                onClick={() => setShow((s) => !s)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-              >
-                {show ? (
-                  <EyeOff className="h-4 w-4" />
-                ) : (
-                  <Eye className="h-4 w-4" />
-                )}
-              </button>
-            </div>
-            {hint && (
-              <p className="text-xs text-amber-700 dark:text-amber-400">
-                {hint}
-              </p>
-            )}
-            <Button className="w-full" onClick={trySubmit}>
-              Access Dashboard
-            </Button>
-            <p className="text-xs text-muted-foreground text-center">
-              Token is stored in <code>localStorage</code> for this browser
-              session.
-            </p>
-          </CardContent>
-        </Card>
+        <DashboardAuthForm mode="login" />
       </div>
     )
   }
 
   return <>{children}</>
+}
+
+function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname()
+  const isAuthRoute =
+    pathname === "/dashboard/login" || pathname === "/dashboard/signup"
+
+  if (isAuthRoute) {
+    return <>{children}</>
+  }
+
+  return (
+    <JwtGate>
+      <div className="flex min-h-screen">
+        <DashboardSidebar />
+        <main className="flex-1 bg-gray-50 dark:bg-gray-900 overflow-auto">
+          <DashboardTopbar />
+          {children}
+        </main>
+      </div>
+    </JwtGate>
+  )
 }
 
 // ── Sidebar ───────────────────────────────────────────────────────────────────
@@ -182,10 +121,200 @@ function DashboardSidebar() {
           className="flex items-center gap-2 text-sm text-muted-foreground hover:text-red-500 transition-colors px-3 py-2 w-full rounded-md hover:bg-red-50 dark:hover:bg-red-950"
         >
           <LogOut className="h-4 w-4" />
-          Clear Token
+          Logout
         </button>
       </div>
     </aside>
+  )
+}
+
+function DashboardTopbar() {
+  const pathname = usePathname()
+  const { jwt, userEmail, clearJwt } = useDashboardAuth()
+  const [notifOpen, setNotifOpen] = useState(false)
+  const [notifications, setNotifications] = useState<
+    {
+      id: string
+      title: string
+      subtitle: string
+      createdAt: string
+      wooOrderId: number | null
+      read: boolean
+    }[]
+  >([])
+  const seenEventIdsRef = useRef<Set<string>>(new Set())
+  const hydratedEventsRef = useRef(false)
+
+  const { data: eventsData } = useDashboardQuery<EventsResponse>(
+    "internal/dashboard/events",
+    {
+      searchParams: { limit: 30 },
+      refetchInterval: 10_000,
+    }
+  )
+  const profileLabel = userEmail
+    ? userEmail
+    : jwt
+      ? `JWT ${jwt.slice(0, 8)}...${jwt.slice(-6)}`
+      : "No profile"
+
+  const pageTitle =
+    pathname === "/dashboard"
+      ? "Overview"
+      : pathname.startsWith("/dashboard/orders")
+        ? "Orders"
+        : pathname.startsWith("/dashboard/events")
+          ? "Events"
+          : "Dashboard"
+
+  useEffect(() => {
+    if (!eventsData) return
+    const events = eventsData.events ?? []
+
+    if (!hydratedEventsRef.current) {
+      hydratedEventsRef.current = true
+      seenEventIdsRef.current = new Set(events.map((e) => e.id))
+      return
+    }
+
+    const fresh = events.filter((e) => !seenEventIdsRef.current.has(e.id))
+    if (fresh.length > 0) {
+      const mapped = fresh.map((e) => {
+        const title =
+          e.event_type === "order_run_start"
+            ? `Order #${e.woo_order_id ?? "—"} started`
+            : e.event_type === "order_run_end"
+              ? `Order #${e.woo_order_id ?? "—"} completed`
+              : e.event_type === "woo_webhook"
+                ? `Webhook received${e.woo_order_id ? ` for #${e.woo_order_id}` : ""}`
+                : `${e.event_type}${e.woo_order_id ? ` · #${e.woo_order_id}` : ""}`
+
+        return {
+          id: e.id,
+          title,
+          subtitle: e.message ?? "No details",
+          createdAt: e.created_at,
+          wooOrderId: e.woo_order_id ?? null,
+          read: false,
+        }
+      })
+      setNotifications((prev) => [...mapped, ...prev].slice(0, 100))
+    }
+
+    for (const e of events) seenEventIdsRef.current.add(e.id)
+  }, [eventsData])
+
+  const unreadCount = useMemo(
+    () => notifications.reduce((acc, n) => acc + (n.read ? 0 : 1), 0),
+    [notifications]
+  )
+
+  function markAllRead() {
+    setNotifications((prev) => prev.map((n) => ({ ...n, read: true })))
+  }
+
+  return (
+    <header className="h-14 border-b bg-white dark:bg-gray-950 px-4 sm:px-6 flex items-center justify-between">
+      <div>
+        <p className="text-sm font-semibold">{pageTitle}</p>
+        <p className="text-[11px] text-muted-foreground">VPrint Automation</p>
+      </div>
+
+      <div className="flex items-center gap-2">
+        <Popover
+          open={notifOpen}
+          onOpenChange={(open) => {
+            setNotifOpen(open)
+            if (open) markAllRead()
+          }}
+        >
+          <PopoverTrigger asChild>
+            <Button variant="outline" size="icon" className="relative">
+              <Bell className="h-4 w-4" />
+              {unreadCount > 0 && (
+                <span className="absolute -top-1 -right-1 min-w-4 h-4 px-1 rounded-full bg-red-600 text-white text-[10px] leading-4 text-center">
+                  {unreadCount > 9 ? "9+" : unreadCount}
+                </span>
+              )}
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent align="end" className="w-96 p-0">
+            <div className="border-b px-3 py-2 flex items-center justify-between">
+              <div>
+                <p className="text-sm font-semibold">Notifications</p>
+                <p className="text-xs text-muted-foreground">
+                  Live order updates
+                </p>
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-7 text-xs"
+                onClick={markAllRead}
+                disabled={unreadCount === 0}
+              >
+                Mark read
+              </Button>
+            </div>
+            <div className="max-h-96 overflow-auto">
+              {notifications.length === 0 ? (
+                <p className="px-3 py-6 text-sm text-muted-foreground text-center">
+                  No notifications yet.
+                </p>
+              ) : (
+                <div className="divide-y">
+                  {notifications.map((n) => (
+                    <Link
+                      key={n.id}
+                      href={
+                        n.wooOrderId
+                          ? `/dashboard/orders/${n.wooOrderId}`
+                          : "/dashboard/events"
+                      }
+                      className="block px-3 py-2.5 hover:bg-muted/40 transition-colors"
+                      onClick={() => setNotifOpen(false)}
+                    >
+                      <p className={cn("text-sm", !n.read && "font-semibold")}>
+                        {n.title}
+                      </p>
+                      <p className="text-xs text-muted-foreground line-clamp-2">
+                        {n.subtitle}
+                      </p>
+                      <p className="text-[11px] text-muted-foreground mt-1">
+                        {new Date(n.createdAt).toLocaleString()}
+                      </p>
+                    </Link>
+                  ))}
+                </div>
+              )}
+            </div>
+          </PopoverContent>
+        </Popover>
+
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="outline" size="sm" className="gap-2">
+              <UserCircle2 className="h-4 w-4" />
+              Profile
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-56">
+            <DropdownMenuLabel>Profile</DropdownMenuLabel>
+            <DropdownMenuItem className="text-xs text-muted-foreground">
+              {profileLabel}
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              onClick={clearJwt}
+              className="text-red-600 focus:text-red-600"
+            >
+              <LogOut className="h-4 w-4" />
+              Logout
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
+    </header>
   )
 }
 
@@ -198,14 +327,7 @@ export default function DashboardLayout({
 }) {
   return (
     <DashboardAuthProvider>
-      <JwtGate>
-        <div className="flex min-h-screen">
-          <DashboardSidebar />
-          <main className="flex-1 bg-gray-50 dark:bg-gray-900 overflow-auto">
-            {children}
-          </main>
-        </div>
-      </JwtGate>
+      <DashboardLayoutInner>{children}</DashboardLayoutInner>
     </DashboardAuthProvider>
   )
 }

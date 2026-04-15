@@ -1,6 +1,6 @@
 "use client"
 
-import { RefreshCw, Search, X } from "lucide-react"
+import { ChevronLeft, ChevronRight, RefreshCw, Search, X } from "lucide-react"
 import Link from "next/link"
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
@@ -74,14 +74,19 @@ function EventTypePill({ type }: { type: string }) {
 export default function EventsPage() {
   const [wooIdInput, setWooIdInput] = useState("")
   const [applied, setApplied] = useState<{ wooId?: string; type?: string }>({})
-  const [limit, setLimit] = useState(80)
+  const [page, setPage] = useState(1)
+  const PAGE_SIZE = 50
+  const offset = (page - 1) * PAGE_SIZE
 
   const { data: typesData } = useDashboardQuery<EventTypesResponse>(
     "internal/dashboard/events/event-types",
     { staleTime: 60_000 }
   )
 
-  const sp: Record<string, string | number | boolean> = { limit }
+  const sp: Record<string, string | number | boolean> = {
+    limit: PAGE_SIZE,
+    offset,
+  }
   if (applied.wooId) sp.woo_order_id = applied.wooId
   if (applied.type) sp.event_type = applied.type
 
@@ -96,12 +101,13 @@ export default function EventsPage() {
       ...prev,
       wooId: wooIdInput.trim() || undefined,
     }))
-    setLimit(80)
+    setPage(1)
   }
 
   function clearFilter() {
     setWooIdInput("")
     setApplied({})
+    setPage(1)
   }
 
   const hasFilter = !!(applied.wooId || applied.type)
@@ -111,11 +117,10 @@ export default function EventsPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-xl font-semibold tracking-tight">
-            Automation Events
-          </h2>
           <p className="text-sm text-muted-foreground">
-            {data ? `${data.events.length} events` : "Loading…"}
+            {data
+              ? `Page ${page} · showing ${data.events.length} event${data.events.length === 1 ? "" : "s"}`
+              : "Loading..."}
           </p>
         </div>
         <Button
@@ -161,7 +166,7 @@ export default function EventsPage() {
                     ...prev,
                     type: v === "__all__" ? undefined : v,
                   }))
-                  setLimit(80)
+                  setPage(1)
                 }}
               >
                 <SelectTrigger id="event-type-select" className="w-full">
@@ -295,11 +300,33 @@ export default function EventsPage() {
         </Card>
       )}
 
-      {/* Load more */}
-      {data && data.events.length >= limit && (
-        <div className="flex justify-center">
-          <Button variant="outline" onClick={() => setLimit((l) => l + 80)}>
-            Load more
+      {/* Pagination */}
+      {data && (
+        <div className="flex items-center justify-center gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            size="icon"
+            className="h-8 w-8"
+            disabled={page <= 1 || isFetching}
+            onClick={() => setPage((p) => Math.max(1, p - 1))}
+            aria-label="Previous page"
+          >
+            <ChevronLeft className="h-4 w-4" />
+          </Button>
+          <span className="text-sm text-muted-foreground min-w-14 text-center">
+            {page}
+          </span>
+          <Button
+            type="button"
+            variant="outline"
+            size="icon"
+            className="h-8 w-8"
+            disabled={data.events.length < PAGE_SIZE || isFetching}
+            onClick={() => setPage((p) => p + 1)}
+            aria-label="Next page"
+          >
+            <ChevronRight className="h-4 w-4" />
           </Button>
         </div>
       )}

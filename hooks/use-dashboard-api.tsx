@@ -13,18 +13,23 @@ import { env } from "@/env"
 import { buildRequestUrl } from "@/lib/utils"
 
 const JWT_STORAGE_KEY = "vprint_dashboard_jwt"
+const USER_EMAIL_STORAGE_KEY = "vprint_dashboard_user_email"
 
 // ── Auth context ──────────────────────────────────────────────────────────────
 
 type DashboardAuthCtx = {
   jwt: string | null
+  userEmail: string | null
   setJwt: (jwt: string) => void
+  setSession: (jwt: string, userEmail?: string | null) => void
   clearJwt: () => void
 }
 
 const DashboardAuthContext = createContext<DashboardAuthCtx>({
   jwt: null,
+  userEmail: null,
   setJwt: () => {},
+  setSession: () => {},
   clearJwt: () => {},
 })
 
@@ -34,10 +39,13 @@ export function DashboardAuthProvider({
   children: React.ReactNode
 }) {
   const [jwt, setJwtState] = useState<string | null>(null)
+  const [userEmail, setUserEmail] = useState<string | null>(null)
 
   useEffect(() => {
     const stored = localStorage.getItem(JWT_STORAGE_KEY)
     if (stored) setJwtState(stored)
+    const storedEmail = localStorage.getItem(USER_EMAIL_STORAGE_KEY)
+    if (storedEmail) setUserEmail(storedEmail)
   }, [])
 
   const setJwt = useCallback((token: string) => {
@@ -45,13 +53,29 @@ export function DashboardAuthProvider({
     setJwtState(token)
   }, [])
 
+  const setSession = useCallback((token: string, email?: string | null) => {
+    localStorage.setItem(JWT_STORAGE_KEY, token)
+    setJwtState(token)
+    if (email) {
+      localStorage.setItem(USER_EMAIL_STORAGE_KEY, email)
+      setUserEmail(email)
+    } else {
+      localStorage.removeItem(USER_EMAIL_STORAGE_KEY)
+      setUserEmail(null)
+    }
+  }, [])
+
   const clearJwt = useCallback(() => {
     localStorage.removeItem(JWT_STORAGE_KEY)
+    localStorage.removeItem(USER_EMAIL_STORAGE_KEY)
     setJwtState(null)
+    setUserEmail(null)
   }, [])
 
   return (
-    <DashboardAuthContext.Provider value={{ jwt, setJwt, clearJwt }}>
+    <DashboardAuthContext.Provider
+      value={{ jwt, userEmail, setJwt, setSession, clearJwt }}
+    >
       {children}
     </DashboardAuthContext.Provider>
   )
@@ -101,4 +125,43 @@ export function useDashboardQuery<T>(
     refetchInterval,
     ...rest,
   })
+}
+
+// ── Order control hook ────────────────────────────────────────────────────────
+
+type ControlAction = "pause" | "resume" | "stop"
+
+export function useOrderControl() {
+  const { jwt } = useDashboardAuth()
+  const [pending, setPending] = useState<ControlAction | null>(null)
+  const [error, setError] = useState<string | null>(null)
+
+  const act = useCallback(
+    async (orderId: string, action: ControlAction): Promise<boolean> => {
+      if (!jwt) return false
+      setPending(action)
+      setError(null)
+      try {
+        const url = buildRequestUrl(
+          env.NEXT_PUBLIC_APP_URL,
+          `internal/dashboard/orders/${orderId}/${action}`
+        )
+        await axios.post(url, null, {
+          headers: { Authorization: `Bearer ${jwt}` },
+        })
+        return true
+      } catch (e: unknown) {
+        const msg = axios.isAxiosError(e)
+          ? ((e.response?.data as { error?: string })?.error ?? e.message)
+          : String(e)
+        setError(msg)
+        return false
+      } finally {
+        setPending(null)
+      }
+    },
+    [jwt]
+  )
+
+  return { act, pending, error }
 }

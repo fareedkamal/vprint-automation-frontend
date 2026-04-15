@@ -1,19 +1,26 @@
 "use client"
 
+import { useQueryClient } from "@tanstack/react-query"
 import {
   Activity,
   AlertCircle,
+  Bug,
   CheckCircle2,
   Clock,
+  ExternalLink,
   Loader2,
   Pause,
+  Play,
+  Square,
   TrendingUp,
   Webhook,
   XCircle,
+  Zap,
 } from "lucide-react"
+import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
-import { useDashboardQuery } from "@/hooks/use-dashboard-api"
+import { useDashboardQuery, useOrderControl } from "@/hooks/use-dashboard-api"
 import { cn } from "@/lib/utils"
 import type { OverviewData } from "@/types/dashboard"
 
@@ -60,51 +67,306 @@ function StatusPill({ status }: { status: string }) {
   )
 }
 
+// ── Step bar ──────────────────────────────────────────────────────────────────
+
+const STEPS = [
+  { key: "session", label: "Session", icon: Zap },
+  { key: "artwork", label: "Artwork", icon: Activity },
+  { key: "cart", label: "Cart", icon: CheckCircle2 },
+  { key: "checkout", label: "Checkout", icon: CheckCircle2 },
+]
+
+function stepIndex(step?: string): number {
+  if (!step) return -1
+  if (step === "starting" || step === "session") return 0
+  if (step === "session_failed") return -2
+  if (step.startsWith("artwork:")) return 1
+  if (step.startsWith("cart:")) return 2
+  if (step === "checkout") return 3
+  return -1
+}
+
+function StepBar({ step }: { step?: string }) {
+  const idx = stepIndex(step)
+  const isErr = idx === -2
+  const skuMatch = step?.match(/^(?:artwork|cart):(.+)$/)
+  const sku = skuMatch?.[1]
+
+  return (
+    <div>
+      <div className="flex items-center gap-0">
+        {STEPS.map((s, i) => {
+          let state: "done" | "active" | "error" | "pending" = "pending"
+          if (isErr && i === 0) state = "error"
+          else if (i < idx) state = "done"
+          else if (i === idx) state = "active"
+
+          return (
+            <div key={s.key} className="flex items-center">
+              <div className="flex flex-col items-center gap-0.5">
+                <div
+                  className={cn(
+                    "h-7 w-7 rounded-full flex items-center justify-center text-xs font-bold border-2 transition-colors",
+                    state === "done" &&
+                      "border-green-500 bg-green-50 dark:bg-green-950/40 text-green-600",
+                    state === "active" &&
+                      "border-blue-500 bg-blue-50 dark:bg-blue-950/40 text-blue-600 shadow-[0_0_8px_rgba(59,130,246,0.4)]",
+                    state === "error" &&
+                      "border-red-500 bg-red-50 dark:bg-red-950/40 text-red-600",
+                    state === "pending" &&
+                      "border-border bg-background text-muted-foreground"
+                  )}
+                >
+                  {state === "done" ? "✓" : i + 1}
+                </div>
+                <span
+                  className={cn(
+                    "text-[10px] whitespace-nowrap",
+                    state === "done" && "text-green-600 dark:text-green-400",
+                    state === "active" &&
+                      "text-blue-600 dark:text-blue-400 font-semibold",
+                    state === "error" && "text-red-600 dark:text-red-400",
+                    state === "pending" && "text-muted-foreground"
+                  )}
+                >
+                  {s.label}
+                </span>
+              </div>
+              {i < STEPS.length - 1 && (
+                <div
+                  className={cn(
+                    "h-0.5 w-6 sm:w-10 mb-3.5 mx-1",
+                    i < idx
+                      ? "bg-green-500"
+                      : i === idx - 1
+                        ? "bg-blue-500"
+                        : "bg-border"
+                  )}
+                />
+              )}
+            </div>
+          )
+        })}
+      </div>
+      {sku && (
+        <p className="text-[11px] text-muted-foreground mt-1">
+          SKU:{" "}
+          <span className="font-mono font-semibold text-foreground">{sku}</span>
+        </p>
+      )}
+    </div>
+  )
+}
+
+// ── Progress bar ──────────────────────────────────────────────────────────────
+
+function ProgressBar({
+  pct,
+  label,
+  color = "blue",
+}: {
+  pct: number
+  label?: string
+  color?: "blue" | "green" | "red" | "yellow"
+}) {
+  const trackColor = {
+    blue: "bg-blue-500",
+    green: "bg-green-500",
+    red: "bg-red-500",
+    yellow: "bg-yellow-500",
+  }[color]
+
+  return (
+    <div className="space-y-1">
+      <div className="flex justify-between text-xs text-muted-foreground">
+        <span>{label ?? "Progress"}</span>
+        <span className="font-semibold text-foreground">{pct}%</span>
+      </div>
+      <div className="h-1.5 rounded-full bg-border overflow-hidden">
+        <div
+          className={cn(
+            "h-full rounded-full transition-all duration-500",
+            trackColor
+          )}
+          style={{ width: `${pct}%` }}
+        />
+      </div>
+    </div>
+  )
+}
+
 // ── Poller status card ────────────────────────────────────────────────────────
 
-function PollerCard({ data }: { data: OverviewData }) {
+function PollerCard({
+  data,
+  onAction,
+}: {
+  data: OverviewData
+  onAction: () => void
+}) {
   const { poller } = data
   const busy = poller.isBusy
   const proc = poller.processing
+  const { act, pending: actionPending, error: actionError } = useOrderControl()
+
+  async function handleAction(action: "pause" | "resume" | "stop") {
+    if (!proc.active || !proc.orderId) return
+    if (action === "stop") {
+      if (
+        !window.confirm(
+          "Stop this order and mark it as FAILED? This cannot be undone."
+        )
+      )
+        return
+    }
+    const ok = await act(proc.orderId, action)
+    if (ok) onAction()
+  }
+
+  const pct = proc.active ? (proc.progressPct ?? 0) : 0
+  const itemCount =
+    proc.active && (proc.totalItems ?? 0) > 1
+      ? `Item ${(proc.currentItemIndex ?? 0) + 1} / ${proc.totalItems}`
+      : null
 
   return (
-    <Card>
+    <Card className={cn(busy && "border-blue-200 dark:border-blue-800")}>
       <CardHeader className="pb-2">
         <CardTitle className="text-sm font-medium flex items-center gap-2 text-muted-foreground">
           <Activity className="h-4 w-4" />
           Poller Status
         </CardTitle>
       </CardHeader>
-      <CardContent>
-        <div className="flex items-center gap-2 mb-3">
+      <CardContent className="space-y-3">
+        {/* Status badge */}
+        <div className="flex items-center gap-2 flex-wrap">
           <span
             className={cn(
-              "h-2.5 w-2.5 rounded-full",
-              busy ? "bg-yellow-400 animate-pulse" : "bg-green-400"
+              "h-2.5 w-2.5 rounded-full shrink-0",
+              busy ? "bg-blue-400 animate-pulse" : "bg-green-400"
             )}
           />
-          <span className="text-xl font-bold">{busy ? "Busy" : "Idle"}</span>
+          <span className="text-xl font-bold">
+            {busy ? "Processing" : "Idle"}
+          </span>
+          {proc.active && proc.wooOrderId && (
+            <span className="text-sm font-mono font-semibold text-muted-foreground">
+              Woo #{proc.wooOrderId}
+            </span>
+          )}
+          {itemCount && (
+            <span className="text-xs bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 rounded-full px-2 py-0.5 font-medium">
+              {itemCount}
+            </span>
+          )}
         </div>
+
+        {/* Step bar */}
+        {proc.active && <StepBar step={proc.step} />}
+
+        {/* Progress bar */}
         {proc.active && (
-          <div className="space-y-1.5 text-sm">
-            <div className="text-muted-foreground">
-              Woo{" "}
-              <span className="font-mono font-semibold text-foreground">
-                #{proc.wooOrderId}
-              </span>
-            </div>
-            <div className="flex items-center gap-1.5 text-muted-foreground">
-              <Loader2 className="h-3.5 w-3.5 animate-spin" />
-              <span className="font-mono text-xs">{proc.step}</span>
-            </div>
+          <ProgressBar pct={pct} color={pct >= 80 ? "green" : "blue"} />
+        )}
+
+        {/* Session URLs */}
+        {proc.active && (proc.streamingUrl || proc.debugUrl) && (
+          <div className="flex flex-wrap gap-2">
+            {proc.streamingUrl && (
+              <a
+                href={proc.streamingUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md border border-blue-300 dark:border-blue-700 text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/30 text-xs font-medium hover:bg-blue-100 dark:hover:bg-blue-950/60 transition-colors"
+              >
+                <ExternalLink className="h-3 w-3" />
+                Live session
+              </a>
+            )}
+            {proc.debugUrl && (
+              <a
+                href={proc.debugUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md border border-purple-300 dark:border-purple-700 text-purple-600 dark:text-purple-400 bg-purple-50 dark:bg-purple-950/30 text-xs font-medium hover:bg-purple-100 dark:hover:bg-purple-950/60 transition-colors"
+              >
+                <Bug className="h-3 w-3" />
+                Debug inspector
+              </a>
+            )}
           </div>
         )}
+
+        {/* Control buttons */}
+        {proc.active && proc.orderId && (
+          <div className="flex flex-wrap gap-2 pt-1 border-t border-border">
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-7 text-xs gap-1.5 border-yellow-400 text-yellow-600 dark:text-yellow-400 hover:bg-yellow-50 dark:hover:bg-yellow-950/30"
+              disabled={actionPending !== null}
+              onClick={() => handleAction("pause")}
+            >
+              {actionPending === "pause" ? (
+                <Loader2 className="h-3 w-3 animate-spin" />
+              ) : (
+                <Pause className="h-3 w-3" />
+              )}
+              Pause
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-7 text-xs gap-1.5 border-green-400 text-green-600 dark:text-green-400 hover:bg-green-50 dark:hover:bg-green-950/30"
+              disabled={actionPending !== null}
+              onClick={() => handleAction("resume")}
+            >
+              {actionPending === "resume" ? (
+                <Loader2 className="h-3 w-3 animate-spin" />
+              ) : (
+                <Play className="h-3 w-3" />
+              )}
+              Resume
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-7 text-xs gap-1.5 border-red-400 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30"
+              disabled={actionPending !== null}
+              onClick={() => handleAction("stop")}
+            >
+              {actionPending === "stop" ? (
+                <Loader2 className="h-3 w-3 animate-spin" />
+              ) : (
+                <Square className="h-3 w-3 fill-current" />
+              )}
+              Stop &amp; fail
+            </Button>
+          </div>
+        )}
+
+        {/* Action error */}
+        {actionError && (
+          <p className="text-xs text-red-600 dark:text-red-400">
+            {actionError}
+          </p>
+        )}
+
+        {/* Session failed */}
+        {proc.active && proc.step === "session_failed" && (
+          <p className="text-xs text-red-600 dark:text-red-400">
+            Session creation failed — check Browserbase credentials &amp;
+            connectivity.
+          </p>
+        )}
+
         {!proc.active && !busy && (
           <p className="text-xs text-muted-foreground">
             Waiting for pending FireSprint orders.
           </p>
         )}
-        <p className="text-xs text-muted-foreground mt-3">
+
+        <p className="text-xs text-muted-foreground">
           Updated {new Date(data.generated_at).toLocaleTimeString()}
         </p>
       </CardContent>
@@ -115,10 +377,16 @@ function PollerCard({ data }: { data: OverviewData }) {
 // ── Main page ─────────────────────────────────────────────────────────────────
 
 export default function DashboardPage() {
+  const queryClient = useQueryClient()
+
   const { data, isLoading, error } = useDashboardQuery<OverviewData>(
     "internal/dashboard/overview",
     { refetchInterval: 8_000 }
   )
+
+  function invalidateOverview() {
+    queryClient.invalidateQueries({ queryKey: ["internal/dashboard/overview"] })
+  }
 
   if (isLoading) {
     return (
@@ -202,16 +470,13 @@ export default function DashboardPage() {
 
   return (
     <div className="p-6 space-y-8">
-      <div>
-        <h2 className="text-xl font-semibold tracking-tight">Overview</h2>
-        <p className="text-sm text-muted-foreground mt-0.5">
-          Live automation status — auto-refreshes every 8 s
-        </p>
-      </div>
+      <p className="text-sm text-muted-foreground">
+        Live automation status — auto-refreshes every 8 s
+      </p>
 
       {/* Top: Poller · Queue · Completion · Webhooks */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <PollerCard data={data} />
+        <PollerCard data={data} onAction={invalidateOverview} />
 
         <Card>
           <CardHeader className="pb-2">

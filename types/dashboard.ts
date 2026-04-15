@@ -13,6 +13,16 @@ export type PollerProcessing = {
   orderId?: string
   wooOrderId?: string | number
   step?: string
+  /** Browserbase live-view URL */
+  streamingUrl?: string | null
+  /** Browserbase debug/inspector URL */
+  debugUrl?: string | null
+  /** 0–100 overall progress percentage */
+  progressPct?: number
+  /** 0-based index of item currently being processed */
+  currentItemIndex?: number
+  /** Total items in this order run */
+  totalItems?: number
 }
 
 export type PollerSnapshot = {
@@ -52,6 +62,8 @@ export type OrderItem = {
   product_name: string | null
   quantity: number | null
   agent_message: string | null
+  firesprint_order_id?: string | null
+  firesprint_order_url?: string | null
   artwork_url: string | null
   woo_line_item_id: string | null
 }
@@ -65,6 +77,10 @@ export type Order = {
   customer_email: string | null
   created_at: string
   date_created?: string
+  /** Set when automation starts processing this order */
+  processing_started_at?: string | null
+  /** Set when automation reaches a terminal state (placed or failed) */
+  completed_at?: string | null
   order_items: OrderItem[]
 }
 
