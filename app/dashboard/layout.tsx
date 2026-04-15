@@ -32,7 +32,7 @@ import {
   useDashboardQuery,
 } from "@/hooks/use-dashboard-api"
 import { cn } from "@/lib/utils"
-import type { EventsResponse } from "@/types/dashboard"
+import type { OrdersResponse } from "@/types/dashboard"
 
 const NAV = [
   { href: "/dashboard", label: "Overview", icon: LayoutDashboard, exact: true },
@@ -142,13 +142,14 @@ function DashboardTopbar() {
       read: boolean
     }[]
   >([])
-  const seenEventIdsRef = useRef<Set<string>>(new Set())
-  const hydratedEventsRef = useRef(false)
+  const seenOrderIdsRef = useRef<Set<string>>(new Set())
+  const orderStatusRef = useRef<Map<string, string>>(new Map())
+  const hydratedOrdersRef = useRef(false)
 
-  const { data: eventsData } = useDashboardQuery<EventsResponse>(
-    "internal/dashboard/events",
+  const { data: ordersData } = useDashboardQuery<OrdersResponse>(
+    "internal/dashboard/orders",
     {
-      searchParams: { limit: 30 },
+      searchParams: { limit: 30, offset: 0, firesprint_only: 0 },
       refetchInterval: 10_000,
     }
   )
@@ -168,41 +169,76 @@ function DashboardTopbar() {
           : "Dashboard"
 
   useEffect(() => {
-    if (!eventsData) return
-    const events = eventsData.events ?? []
+    if (!ordersData) return
+    const orders = ordersData.orders ?? []
 
-    if (!hydratedEventsRef.current) {
-      hydratedEventsRef.current = true
-      seenEventIdsRef.current = new Set(events.map((e) => e.id))
+    const nextStatusMap = new Map<string, string>()
+    const nextIds = new Set<string>()
+    for (const order of orders) {
+      nextStatusMap.set(order.id, order.status)
+      nextIds.add(order.id)
+    }
+
+    if (!hydratedOrdersRef.current) {
+      hydratedOrdersRef.current = true
+      seenOrderIdsRef.current = nextIds
+      orderStatusRef.current = nextStatusMap
       return
     }
 
-    const fresh = events.filter((e) => !seenEventIdsRef.current.has(e.id))
-    if (fresh.length > 0) {
-      const mapped = fresh.map((e) => {
-        const title =
-          e.event_type === "order_run_start"
-            ? `Order #${e.woo_order_id ?? "—"} started`
-            : e.event_type === "order_run_end"
-              ? `Order #${e.woo_order_id ?? "—"} completed`
-              : e.event_type === "woo_webhook"
-                ? `Webhook received${e.woo_order_id ? ` for #${e.woo_order_id}` : ""}`
-                : `${e.event_type}${e.woo_order_id ? ` · #${e.woo_order_id}` : ""}`
+    const mapped: {
+      id: string
+      title: string
+      subtitle: string
+      createdAt: string
+      wooOrderId: number | null
+      read: boolean
+    }[] = []
 
-        return {
-          id: e.id,
-          title,
-          subtitle: e.message ?? "No details",
-          createdAt: e.created_at,
-          wooOrderId: e.woo_order_id ?? null,
+    for (const order of orders) {
+      const prevSeen = seenOrderIdsRef.current.has(order.id)
+      const prevStatus = orderStatusRef.current.get(order.id)
+      const currentStatus = order.status
+
+      if (!prevSeen) {
+        mapped.push({
+          id: `new:${order.id}:${Date.now()}`,
+          title: `New order received #${order.woo_order_id}`,
+          subtitle: order.customer_name
+            ? `${order.customer_name} • ${currentStatus}`
+            : `Status: ${currentStatus}`,
+          createdAt: new Date().toISOString(),
+          wooOrderId: order.woo_order_id ?? null,
           read: false,
-        }
-      })
+        })
+        continue
+      }
+
+      if (prevStatus && prevStatus !== currentStatus) {
+        const title =
+          currentStatus === "placed"
+            ? `Order #${order.woo_order_id} completed`
+            : currentStatus === "failed"
+              ? `Order #${order.woo_order_id} failed`
+              : `Order #${order.woo_order_id} updated`
+        mapped.push({
+          id: `status:${order.id}:${currentStatus}:${Date.now()}`,
+          title,
+          subtitle: `${prevStatus} → ${currentStatus}`,
+          createdAt: new Date().toISOString(),
+          wooOrderId: order.woo_order_id ?? null,
+          read: false,
+        })
+      }
+    }
+
+    if (mapped.length > 0) {
       setNotifications((prev) => [...mapped, ...prev].slice(0, 100))
     }
 
-    for (const e of events) seenEventIdsRef.current.add(e.id)
-  }, [eventsData])
+    seenOrderIdsRef.current = nextIds
+    orderStatusRef.current = nextStatusMap
+  }, [ordersData])
 
   const unreadCount = useMemo(
     () => notifications.reduce((acc, n) => acc + (n.read ? 0 : 1), 0),

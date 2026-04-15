@@ -94,7 +94,7 @@ function StepBar({ step }: { step?: string }) {
 
   return (
     <div>
-      <div className="flex items-center gap-0">
+      <div className="flex items-center gap-0 min-w-0 overflow-hidden">
         {STEPS.map((s, i) => {
           let state: "done" | "active" | "error" | "pending" = "pending"
           if (isErr && i === 0) state = "error"
@@ -102,7 +102,7 @@ function StepBar({ step }: { step?: string }) {
           else if (i === idx) state = "active"
 
           return (
-            <div key={s.key} className="flex items-center">
+            <div key={s.key} className="flex items-center flex-1 min-w-0">
               <div className="flex flex-col items-center gap-0.5">
                 <div
                   className={cn(
@@ -135,7 +135,7 @@ function StepBar({ step }: { step?: string }) {
               {i < STEPS.length - 1 && (
                 <div
                   className={cn(
-                    "h-0.5 w-6 sm:w-10 mb-3.5 mx-1",
+                    "h-0.5 flex-1 min-w-3 mb-3.5 mx-1",
                     i < idx
                       ? "bg-green-500"
                       : i === idx - 1
@@ -230,14 +230,19 @@ function PollerCard({
       : null
 
   return (
-    <Card className={cn(busy && "border-blue-200 dark:border-blue-800")}>
+    <Card
+      className={cn(
+        "h-full shadow-sm transition-shadow hover:shadow-md",
+        busy && "border-blue-200 dark:border-blue-800"
+      )}
+    >
       <CardHeader className="pb-2">
         <CardTitle className="text-sm font-medium flex items-center gap-2 text-muted-foreground">
           <Activity className="h-4 w-4" />
           Poller Status
         </CardTitle>
       </CardHeader>
-      <CardContent className="space-y-3">
+      <CardContent className="space-y-4">
         {/* Status badge */}
         <div className="flex items-center gap-2 flex-wrap">
           <span
@@ -246,7 +251,7 @@ function PollerCard({
               busy ? "bg-blue-400 animate-pulse" : "bg-green-400"
             )}
           />
-          <span className="text-xl font-bold">
+          <span className="text-2xl font-bold tracking-tight">
             {busy ? "Processing" : "Idle"}
           </span>
           {proc.active && proc.wooOrderId && (
@@ -366,7 +371,7 @@ function PollerCard({
           </p>
         )}
 
-        <p className="text-xs text-muted-foreground">
+        <p className="text-xs text-muted-foreground pt-1">
           Updated {new Date(data.generated_at).toLocaleTimeString()}
         </p>
       </CardContent>
@@ -469,23 +474,25 @@ export default function DashboardPage() {
   ]
 
   return (
-    <div className="p-6 space-y-8">
+    <div className="p-6 space-y-7">
       <p className="text-sm text-muted-foreground">
         Live automation status — auto-refreshes every 8 s
       </p>
 
       {/* Top: Poller · Queue · Completion · Webhooks */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <PollerCard data={data} onAction={invalidateOverview} />
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+        <div className="lg:col-span-2">
+          <PollerCard data={data} onAction={invalidateOverview} />
+        </div>
 
-        <Card>
+        <Card className="h-full shadow-sm transition-shadow hover:shadow-md">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
               Queue (FireSprint)
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold">
+            <div className="text-4xl font-bold tracking-tight">
               {q.pending_plus_processing}
             </div>
             <p className="text-xs text-muted-foreground mt-1">
@@ -494,7 +501,7 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="h-full shadow-sm transition-shadow hover:shadow-md">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium flex items-center gap-2 text-muted-foreground">
               <TrendingUp className="h-4 w-4" />
@@ -502,7 +509,7 @@ export default function DashboardPage() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold">
+            <div className="text-4xl font-bold tracking-tight">
               {completionPct != null ? `${completionPct}%` : "—"}
             </div>
             <p className="text-xs text-muted-foreground mt-1">
@@ -512,7 +519,7 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="h-full shadow-sm transition-shadow hover:shadow-md">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium flex items-center gap-2 text-muted-foreground">
               <Webhook className="h-4 w-4" />
@@ -520,7 +527,7 @@ export default function DashboardPage() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold">{webhooks}</div>
+            <div className="text-4xl font-bold tracking-tight">{webhooks}</div>
             <p className="text-xs text-muted-foreground mt-1">
               WooCommerce webhook calls
             </p>
@@ -535,12 +542,15 @@ export default function DashboardPage() {
         </h3>
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
           {lineCards.map(({ label, value, icon: Icon, color, spin }) => (
-            <Card key={label}>
+            <Card
+              key={label}
+              className="shadow-sm transition-shadow hover:shadow-md"
+            >
               <CardContent className="pt-4 pb-3">
                 <Icon
                   className={cn("h-5 w-5 mb-2", color, spin && "animate-spin")}
                 />
-                <div className="text-2xl font-bold">{value}</div>
+                <div className="text-3xl font-bold tracking-tight">{value}</div>
                 <div className="text-xs text-muted-foreground mt-0.5 leading-tight">
                   {label}
                 </div>
@@ -557,9 +567,12 @@ export default function DashboardPage() {
         </h3>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           {Object.entries(osc).map(([status, count]) => (
-            <Card key={status}>
+            <Card
+              key={status}
+              className="shadow-sm transition-shadow hover:shadow-md"
+            >
               <CardContent className="pt-4 pb-3">
-                <div className="text-2xl font-bold">{count}</div>
+                <div className="text-3xl font-bold tracking-tight">{count}</div>
                 <div className="mt-1.5">
                   <StatusPill status={status} />
                 </div>
