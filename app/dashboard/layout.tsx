@@ -2,12 +2,14 @@
 
 import {
   Bell,
+  FileSpreadsheet,
   LayoutDashboard,
   List,
   LogOut,
   Radio,
   UserCircle2,
 } from "lucide-react"
+import type { Route } from "next"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { useEffect, useMemo, useRef, useState } from "react"
@@ -38,6 +40,12 @@ const NAV = [
   { href: "/dashboard", label: "Overview", icon: LayoutDashboard, exact: true },
   { href: "/dashboard/orders", label: "Orders", icon: List, exact: false },
   { href: "/dashboard/events", label: "Events", icon: Radio, exact: false },
+  {
+    href: "/dashboard/vendor-catalog",
+    label: "Vendor catalog",
+    icon: FileSpreadsheet,
+    exact: false,
+  },
 ] as const
 
 // ── Login gate: shown when no dashboard session ───────────────────────────────
@@ -99,7 +107,7 @@ function DashboardSidebar() {
           return (
             <Link
               key={href}
-              href={href}
+              href={href as Route}
               className={cn(
                 "flex items-center gap-2.5 px-3 py-2 rounded-md text-sm transition-colors",
                 active

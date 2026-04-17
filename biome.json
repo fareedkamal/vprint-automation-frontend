@@ -11,7 +11,8 @@
       "!**/public",
       "!**/*.config.js",
       "!**/*.config.ts",
-      "!**/*.vscode"
+      "!**/*.vscode",
+      "!next-env.d.ts"
     ]
   },
   "formatter": {
