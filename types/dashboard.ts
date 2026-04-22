@@ -23,6 +23,8 @@ export type PollerProcessing = {
   currentItemIndex?: number
   /** Total items in this order run */
   totalItems?: number
+  /** Live dashboard control signal for the active order */
+  controlState?: "paused" | "stop_requested" | null
 }
 
 export type PollerSnapshot = {
@@ -81,6 +83,8 @@ export type Order = {
   processing_started_at?: string | null
   /** Set when automation reaches a terminal state (placed or failed) */
   completed_at?: string | null
+  /** Live control state attached by backend dashboard endpoint */
+  control_state?: "paused" | "stop_requested" | null
   order_items: OrderItem[]
 }
 

@@ -82,6 +82,10 @@ const STATUS_COLORS: Record<string, string> = {
   on_hold: "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300",
   "in-review":
     "bg-purple-100 text-purple-800 dark:bg-purple-900/40 dark:text-purple-300",
+  paused:
+    "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/40 dark:text-yellow-300",
+  "stop requested":
+    "bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300",
 }
 
 function Pill({ status }: { status: string }) {
@@ -96,6 +100,14 @@ function Pill({ status }: { status: string }) {
       {status}
     </span>
   )
+}
+
+function controlStateLabel(
+  controlState?: Order["control_state"]
+): string | null {
+  if (controlState === "paused") return "paused"
+  if (controlState === "stop_requested") return "stop requested"
+  return null
 }
 
 function FsLineSummary({ items }: { items: Order["order_items"] }) {
@@ -440,7 +452,14 @@ export default function OrdersPage() {
                         </div>
                       </TableCell>
                       <TableCell>
-                        <Pill status={order.status} />
+                        <div className="flex flex-col gap-1">
+                          <Pill status={order.status} />
+                          {controlStateLabel(order.control_state) && (
+                            <span className="text-[11px] text-muted-foreground">
+                              {controlStateLabel(order.control_state)}
+                            </span>
+                          )}
+                        </div>
                       </TableCell>
                       <TableCell className="text-xs whitespace-nowrap">
                         {duration ? (
@@ -571,6 +590,12 @@ export default function OrdersPage() {
                 <span className="font-medium text-foreground">
                   {selectedOrder.status}
                 </span>
+                {controlStateLabel(selectedOrder.control_state) && (
+                  <span>
+                    {" "}
+                    · {controlStateLabel(selectedOrder.control_state)}
+                  </span>
+                )}
               </div>
               <div className="flex flex-wrap gap-2">
                 <Button

@@ -68,6 +68,10 @@ const STATUS_COLORS: Record<string, string> = {
   on_hold: "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300",
   "in-review":
     "bg-purple-100 text-purple-800 dark:bg-purple-900/40 dark:text-purple-300",
+  paused:
+    "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/40 dark:text-yellow-300",
+  "stop requested":
+    "bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300",
 }
 
 function Pill({ status }: { status: string }) {
@@ -82,6 +86,14 @@ function Pill({ status }: { status: string }) {
       {status}
     </span>
   )
+}
+
+function controlStateLabel(
+  controlState?: Order["control_state"]
+): string | null {
+  if (controlState === "paused") return "paused"
+  if (controlState === "stop_requested") return "stop requested"
+  return null
 }
 
 function StatusIcon({ status }: { status: string }) {
@@ -736,6 +748,10 @@ export default function OrderDetailPage({
         </div>
         <div className="flex items-center gap-2 shrink-0">
           <Pill status={order.status} />
+          {(() => {
+            const ctl = controlStateLabel(order.control_state)
+            return ctl ? <Pill status={ctl} /> : null
+          })()}
           {order.woo_status && order.woo_status !== order.status && (
             <Pill status={order.woo_status} />
           )}
