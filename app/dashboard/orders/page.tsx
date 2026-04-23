@@ -88,13 +88,14 @@ const STATUS_COLORS: Record<string, string> = {
     "bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300",
 }
 
-function Pill({ status }: { status: string }) {
+function Pill({ status, className }: { status: string; className?: string }) {
   return (
     <span
       className={cn(
-        "inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium",
+        "inline-flex items-center justify-center rounded-full px-2 py-0.5 text-xs font-medium",
         STATUS_COLORS[status] ??
-          "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400"
+          "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400",
+        className
       )}
     >
       {status}
@@ -168,8 +169,12 @@ function pageButtonWindow(
 
 // ── Page ──────────────────────────────────────────────────────────────────────
 
-export default function OrdersPage() {
-  const [firesprintOnly, setFiresprintOnly] = useState(true)
+export default function OrdersPage({
+  defaultFiresprintOnly = true,
+}: {
+  defaultFiresprintOnly?: boolean
+}) {
+  const [firesprintOnly, setFiresprintOnly] = useState(defaultFiresprintOnly)
   const [searchInput, setSearchInput] = useState("")
   const [appliedSearch, setAppliedSearch] = useState("")
   const [statusFilter, setStatusFilter] = useState<string>("__all__")
@@ -452,8 +457,16 @@ export default function OrdersPage() {
                         </div>
                       </TableCell>
                       <TableCell>
-                        <div className="flex flex-col gap-1">
-                          <Pill status={order.status} />
+                        <div className="flex flex-col gap-1 items-start min-w-0 max-w-full">
+                          <Pill
+                            status={order.status}
+                            className="max-w-[50%] w-fit"
+                          />
+                          {order.woo_status && (
+                            <span className="text-[11px] text-muted-foreground">
+                              Woo: {order.woo_status}
+                            </span>
+                          )}
                           {controlStateLabel(order.control_state) && (
                             <span className="text-[11px] text-muted-foreground">
                               {controlStateLabel(order.control_state)}

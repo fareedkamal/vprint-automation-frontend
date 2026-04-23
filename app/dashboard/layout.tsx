@@ -2,10 +2,12 @@
 
 import {
   Bell,
+  ClipboardList,
   FileSpreadsheet,
   LayoutDashboard,
   List,
   LogOut,
+  Package,
   Radio,
   UserCircle2,
 } from "lucide-react"
@@ -45,6 +47,19 @@ const NAV = [
     label: "Vendor catalog",
     icon: FileSpreadsheet,
     exact: false,
+  },
+] as const
+
+const FS_NAV = [
+  {
+    href: "/dashboard/firesprint/orders",
+    label: "FireSprint orders",
+    icon: Package,
+  },
+  {
+    href: "/dashboard/firesprint/events",
+    label: "FireSprint log",
+    icon: ClipboardList,
   },
 ] as const
 
@@ -120,6 +135,29 @@ function DashboardSidebar() {
             </Link>
           )
         })}
+        <div className="pt-3 mt-2 border-t border-gray-200 dark:border-gray-800">
+          <p className="px-3 mb-1.5 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+            FireSprint
+          </p>
+          {FS_NAV.map(({ href, label, icon: Icon }) => {
+            const active = pathname === href || pathname.startsWith(`${href}/`)
+            return (
+              <Link
+                key={href}
+                href={href as Route}
+                className={cn(
+                  "flex items-center gap-2.5 px-3 py-2 rounded-md text-sm transition-colors",
+                  active
+                    ? "bg-gray-100 dark:bg-gray-800 font-medium text-gray-900 dark:text-gray-100"
+                    : "text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-900 hover:text-gray-900 dark:hover:text-gray-100"
+                )}
+              >
+                <Icon className="h-4 w-4 shrink-0" />
+                {label}
+              </Link>
+            )
+          })}
+        </div>
       </nav>
 
       <div className="p-3 border-t">
@@ -170,11 +208,17 @@ function DashboardTopbar() {
   const pageTitle =
     pathname === "/dashboard"
       ? "Overview"
-      : pathname.startsWith("/dashboard/orders")
-        ? "Orders"
-        : pathname.startsWith("/dashboard/events")
-          ? "Events"
-          : "Dashboard"
+      : pathname.startsWith("/dashboard/firesprint/events")
+        ? "FireSprint log"
+        : pathname.startsWith("/dashboard/firesprint/orders")
+          ? "FireSprint orders"
+          : pathname.startsWith("/dashboard/all-orders")
+            ? "All Orders"
+            : pathname.startsWith("/dashboard/orders")
+              ? "Orders"
+              : pathname.startsWith("/dashboard/events")
+                ? "Events"
+                : "Dashboard"
 
   useEffect(() => {
     if (!ordersData) return

@@ -20,7 +20,11 @@ import {
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
-import { useDashboardQuery, useOrderControl } from "@/hooks/use-dashboard-api"
+import {
+  useDashboardQuery,
+  useFireSprintSync,
+  useOrderControl,
+} from "@/hooks/use-dashboard-api"
 import { cn } from "@/lib/utils"
 import type { OverviewData } from "@/types/dashboard"
 
@@ -208,6 +212,12 @@ function PollerCard({
   const busy = poller.isBusy
   const proc = poller.processing
   const { act, pending: actionPending, error: actionError } = useOrderControl()
+  const {
+    run: runFireSprintSync,
+    pending: syncPending,
+    error: syncError,
+    result: syncResult,
+  } = useFireSprintSync()
 
   async function handleAction(action: "pause" | "resume" | "stop") {
     if (!proc.active || !proc.orderId) return
@@ -220,6 +230,11 @@ function PollerCard({
         return
     }
     const ok = await act(proc.orderId, action)
+    if (ok) onAction()
+  }
+
+  async function handleSyncNow() {
+    const ok = await runFireSprintSync()
     if (ok) onAction()
   }
 
@@ -380,6 +395,35 @@ function PollerCard({
             Waiting for pending FireSprint orders.
           </p>
         )}
+
+        <div className="pt-2 border-t border-border space-y-2">
+          <Button
+            size="sm"
+            variant="outline"
+            className="h-7 text-xs gap-1.5"
+            disabled={syncPending}
+            onClick={handleSyncNow}
+          >
+            {syncPending ? (
+              <Loader2 className="h-3 w-3 animate-spin" />
+            ) : (
+              <Zap className="h-3 w-3" />
+            )}
+            Sync FireSprint Orders
+          </Button>
+          {syncError && (
+            <p className="text-xs text-red-600 dark:text-red-400">
+              {syncError}
+            </p>
+          )}
+          {syncResult && (
+            <p className="text-xs text-muted-foreground">
+              Sync result: scanned {syncResult.scanned}, updated{" "}
+              {syncResult.updated}, tracking {syncResult.trackingFound}, notes{" "}
+              {syncResult.notesPosted}, errors {syncResult.errors}.
+            </p>
+          )}
+        </div>
 
         <p className="text-xs text-muted-foreground pt-1">
           Updated {new Date(data.generated_at).toLocaleTimeString()}

@@ -165,3 +165,47 @@ export function useOrderControl() {
 
   return { act, pending, error }
 }
+
+type FireSprintSyncResult = {
+  ok: boolean
+  scanned: number
+  updated: number
+  trackingFound: number
+  notesPosted: number
+  errors: number
+  screenshots: string[]
+}
+
+export function useFireSprintSync() {
+  const { jwt } = useDashboardAuth()
+  const [pending, setPending] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [result, setResult] = useState<FireSprintSyncResult | null>(null)
+
+  const run = useCallback(async (): Promise<boolean> => {
+    if (!jwt) return false
+    setPending(true)
+    setError(null)
+    try {
+      const url = buildRequestUrl(
+        env.NEXT_PUBLIC_APP_URL,
+        "internal/dashboard/firesprint/sync-now"
+      )
+      const res = await axios.post<FireSprintSyncResult>(url, null, {
+        headers: { Authorization: `Bearer ${jwt}` },
+      })
+      setResult(res.data)
+      return true
+    } catch (e: unknown) {
+      const msg = axios.isAxiosError(e)
+        ? ((e.response?.data as { error?: string })?.error ?? e.message)
+        : String(e)
+      setError(msg)
+      return false
+    } finally {
+      setPending(false)
+    }
+  }, [jwt])
+
+  return { run, pending, error, result }
+}

@@ -117,3 +117,82 @@ export type EventsResponse = {
 export type EventTypesResponse = {
   event_types: string[]
 }
+
+export type FireSprintSyncFeedEntry = {
+  id: string
+  created_at: string
+  trigger: string | null
+  result: string | null
+  /** When the sync threw — exception message (not the same as “no tracking”). */
+  error: string | null
+  scanned: number
+  updated: number
+  trackingFound: number
+  notesPosted: number
+  errors: number
+  liveUrl: string | null
+  debugUrl: string | null
+  sessionId: string | null
+  syncStartedAt: string | null
+  stepLogs: string[]
+  ordersSeen: Array<{
+    orderNo: string
+    status: string | null
+    screenshotUrl: string | null
+  }>
+}
+
+export type FireSprintSyncFeedResponse = {
+  entries: FireSprintSyncFeedEntry[]
+}
+
+export type FireSprintAutomationEventRow = {
+  id: string
+  created_at: string
+  event_type: string
+  message: string | null
+  payload: Record<string, unknown> | null
+}
+
+export type FireSprintAutomationEventsResponse = {
+  limit: number
+  events: FireSprintAutomationEventRow[]
+}
+
+export type FireSprintShipmentRow = {
+  id: string
+  sku: string | null
+  product_name: string | null
+  quantity: number | null
+  vendor_status: string | null
+  firesprint_order_id: string | null
+  firesprint_order_url: string | null
+  firesprint_last_status: string | null
+  firesprint_tracking_number: string | null
+  firesprint_tracking_synced_at: string | null
+  last_firesprint_sync_at: string | null
+  firesprint_last_screenshot_url: string | null
+  last_shipment_note_tracking: string | null
+  woo_order_id: number | null
+  customer_name: string | null
+  customer_email: string | null
+}
+
+export type FireSprintOrdersResponse = {
+  limit: number
+  offset: number
+  total: number
+  rows: FireSprintShipmentRow[]
+}
+
+export type FireSprintDetectedStatusEntry = {
+  firesprint_order_id: string
+  firesprint_last_status: string | null
+  firesprint_tracking_number: string | null
+  last_firesprint_sync_at: string | null
+  firesprint_last_screenshot_url: string | null
+}
+
+export type FireSprintDetectedStatusesResponse = {
+  entries: FireSprintDetectedStatusEntry[]
+}
