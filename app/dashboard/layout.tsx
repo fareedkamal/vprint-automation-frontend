@@ -89,7 +89,7 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
     <JwtGate>
       <div className="flex min-h-screen">
         <DashboardSidebar />
-        <main className="flex-1 min-w-0 overflow-auto bg-gradient-to-br from-muted/50 via-background to-primary/5 dark:from-background dark:via-background dark:to-primary/10">
+        <main className="flex-1 min-w-0 overflow-auto bg-gradient-to-br from-muted/50 via-background to-secondary/12 dark:from-background dark:via-background dark:to-secondary/10">
           <DashboardTopbar />
           {children}
         </main>
@@ -107,7 +107,7 @@ function DashboardSidebar() {
   return (
     <aside
       className="w-56 min-h-screen border-r border-zinc-800/90 bg-zinc-950 text-zinc-200 flex flex-col shrink-0
-      bg-[radial-gradient(120%_80%_at_0%_0%,hsl(328_40%_14%/0.4),transparent_50%)]
+      bg-[radial-gradient(120%_80%_at_0%_0%,hsl(55_45%_18%/0.38),transparent_50%)]
     "
     >
       <div className="px-3 pt-4 pb-4 border-b border-zinc-800/90">

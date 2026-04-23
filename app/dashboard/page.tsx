@@ -47,7 +47,8 @@ const STATUS_COLORS: Record<string, string> = {
     "bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300",
   placed:
     "bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300",
-  failed: "bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300",
+  failed:
+    "bg-amber-100 text-amber-900 dark:bg-amber-900/40 dark:text-amber-200",
   received: "bg-sky-100 text-sky-800 dark:bg-sky-900/40 dark:text-sky-300",
   awaiting_approval:
     "bg-orange-100 text-orange-800 dark:bg-orange-900/40 dark:text-orange-300",
@@ -511,7 +512,7 @@ export default function DashboardPage() {
       label: "Failed",
       value: ls.failed ?? 0,
       icon: XCircle,
-      color: "text-red-500",
+      color: "text-amber-600 dark:text-amber-400",
     },
     {
       label: "Awaiting Approval",
