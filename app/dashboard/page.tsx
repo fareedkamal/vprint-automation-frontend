@@ -42,7 +42,7 @@ const OVERVIEW_STAT_SKELETON_KEYS = [
 
 const STATUS_COLORS: Record<string, string> = {
   pending:
-    "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/40 dark:text-yellow-300",
+    "bg-[#dfe568]/40 text-[hsl(262_42%_18%)] dark:bg-[#dfe568]/20 dark:text-[#dfe568]",
   processing:
     "bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300",
   placed:
@@ -177,7 +177,7 @@ function ProgressBar({
     blue: "bg-blue-500",
     green: "bg-green-500",
     red: "bg-red-500",
-    yellow: "bg-yellow-500",
+    yellow: "bg-[#dfe568]",
   }[color]
 
   return (
@@ -280,7 +280,7 @@ function PollerCard({
             </span>
           )}
           {proc.active && proc.controlState === "paused" && (
-            <span className="text-xs bg-yellow-100 dark:bg-yellow-900/40 text-yellow-700 dark:text-yellow-300 rounded-full px-2 py-0.5 font-medium">
+            <span className="text-xs bg-[#dfe568]/35 text-[hsl(262_42%_18%)] dark:bg-[#dfe568]/25 dark:text-[#dfe568] rounded-full px-2 py-0.5 font-medium">
               Paused
             </span>
           )}
@@ -333,7 +333,7 @@ function PollerCard({
             <Button
               size="sm"
               variant="outline"
-              className="h-7 text-xs gap-1.5 border-yellow-400 text-yellow-600 dark:text-yellow-400 hover:bg-yellow-50 dark:hover:bg-yellow-950/30"
+              className="h-7 text-xs gap-1.5 border-[#dfe568] text-[hsl(262_35%_28%)] dark:text-[#dfe568] hover:bg-[#dfe568]/15 dark:hover:bg-[#dfe568]/10"
               disabled={actionPending !== null}
               onClick={() => handleAction("pause")}
             >
@@ -399,8 +399,8 @@ function PollerCard({
         <div className="pt-2 border-t border-border space-y-2">
           <Button
             size="sm"
-            variant="outline"
-            className="h-7 text-xs gap-1.5"
+            variant="secondary"
+            className="h-7 text-xs gap-1.5 font-medium"
             disabled={syncPending}
             onClick={handleSyncNow}
           >
@@ -449,7 +449,7 @@ export default function DashboardPage() {
 
   if (isLoading) {
     return (
-      <div className="p-6 space-y-6">
+      <div className="w-full min-w-0 p-6 lg:px-8 space-y-6">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           {OVERVIEW_CARD_SKELETON_KEYS.map((rowKey) => (
             <Skeleton key={rowKey} className="h-36 rounded-xl" />
@@ -466,7 +466,7 @@ export default function DashboardPage() {
 
   if (error || !data) {
     return (
-      <div className="p-6">
+      <div className="w-full min-w-0 p-6 lg:px-8">
         <Card className="border-red-200 dark:border-red-800">
           <CardContent className="pt-6 text-red-600 dark:text-red-400">
             {error?.message ?? "Failed to load overview. Check your JWT token."}
@@ -492,7 +492,7 @@ export default function DashboardPage() {
       label: "Pending",
       value: ls.pending ?? 0,
       icon: Clock,
-      color: "text-yellow-500",
+      color: "text-[#dfe568]",
     },
     {
       label: "Processing",
@@ -528,7 +528,7 @@ export default function DashboardPage() {
   ]
 
   return (
-    <div className="p-6 space-y-7">
+    <div className="w-full min-w-0 p-6 lg:px-8 space-y-7">
       <p className="text-sm text-muted-foreground">
         Live automation status — auto-refreshes every 8 s
       </p>

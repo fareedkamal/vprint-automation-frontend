@@ -70,7 +70,7 @@ const ORDERS_TABLE_SKELETON_KEYS = [
 
 const STATUS_COLORS: Record<string, string> = {
   pending:
-    "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/40 dark:text-yellow-300",
+    "bg-[#dfe568]/40 text-[hsl(262_42%_18%)] dark:bg-[#dfe568]/20 dark:text-[#dfe568]",
   processing:
     "bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300",
   placed:
@@ -83,7 +83,7 @@ const STATUS_COLORS: Record<string, string> = {
   "in-review":
     "bg-purple-100 text-purple-800 dark:bg-purple-900/40 dark:text-purple-300",
   paused:
-    "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/40 dark:text-yellow-300",
+    "bg-[#dfe568]/40 text-[hsl(262_42%_18%)] dark:bg-[#dfe568]/20 dark:text-[#dfe568]",
   "stop requested":
     "bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300",
 }
@@ -257,7 +257,7 @@ export default function OrdersPage({
   const hasFilter = appliedSearch.length > 0 || statusFilter !== "__all__"
 
   return (
-    <div className="p-6 space-y-4">
+    <div className="w-full min-w-0 p-6 lg:px-8 space-y-4">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -269,7 +269,7 @@ export default function OrdersPage({
         </div>
         <div className="flex items-center gap-2">
           <Button
-            variant={firesprintOnly ? "default" : "outline"}
+            variant={firesprintOnly ? "secondary" : "outline"}
             size="sm"
             onClick={() => {
               setFiresprintOnly((v) => !v)
@@ -342,7 +342,12 @@ export default function OrdersPage({
                 </SelectContent>
               </Select>
             </div>
-            <Button size="sm" onClick={applyFilters}>
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              onClick={applyFilters}
+            >
               Apply
             </Button>
             {hasFilter && (
@@ -545,7 +550,7 @@ export default function OrdersPage({
               <Button
                 key={p}
                 type="button"
-                variant={p === effectivePage ? "default" : "outline"}
+                variant={p === effectivePage ? "secondary" : "outline"}
                 size="sm"
                 className="h-8 min-w-8 px-2"
                 disabled={isFetching}

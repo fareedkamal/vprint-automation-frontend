@@ -1,8 +1,8 @@
 "use client"
 
 import axios from "axios"
-import { Lock } from "lucide-react"
-import { useState } from "react"
+import { useEffect, useState } from "react"
+import { UnleashLogo } from "@/components/dashboard/unleash-logo"
 import { Button } from "@/components/ui/button"
 import {
   Card,
@@ -33,6 +33,13 @@ export function DashboardAuthForm({
   const [show, setShow] = useState(false)
   const [hint, setHint] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [sessionExpiredNotice, setSessionExpiredNotice] = useState(false)
+
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).get("expired") === "1") {
+      setSessionExpiredNotice(true)
+    }
+  }, [])
 
   async function submitLogin() {
     if (!email.trim() || !password) {
@@ -126,137 +133,165 @@ export function DashboardAuthForm({
   }
 
   return (
-    <Card className="w-full max-w-md shadow-lg">
-      <CardHeader>
-        <div className="flex items-center gap-2 mb-1">
-          <Lock className="h-5 w-5 text-muted-foreground" />
-          <CardTitle>VPrint Automation Dashboard</CardTitle>
-        </div>
-        <CardDescription>
-          {mode === "login"
-            ? "Sign in with your dashboard user email and password."
-            : "Create a dashboard account with email and password."}
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-3">
-        {mode === "signup" && (
-          <div className="space-y-1">
-            <label
-              className="text-xs text-muted-foreground block"
-              htmlFor="dashboard-signup-name"
+    <div
+      className="min-h-screen w-full flex flex-col items-center justify-center p-4 sm:p-6
+      bg-zinc-950
+      bg-[radial-gradient(ellipse_100%_60%_at_50%_-10%,hsl(328_50%_18%/0.35),transparent_55%)]
+    "
+    >
+      <div className="w-full max-w-md flex flex-col items-center">
+        <UnleashLogo
+          className="w-[min(100%,9.5rem)] h-auto object-contain object-center select-none"
+          width={152}
+          height={46}
+          priority
+        />
+        <p className="mt-1.5 mb-4 text-center text-[11px] font-medium uppercase tracking-[0.2em] text-zinc-500">
+          VPrint · Internal dashboard
+        </p>
+        <Card className="w-full shadow-2xl border-zinc-800/80 bg-white text-foreground dark:bg-zinc-900 dark:border-zinc-700/90 dark:text-zinc-100">
+          <CardHeader>
+            <CardTitle className="text-lg">
+              {mode === "login" ? "Sign in" : "Create account"}
+            </CardTitle>
+            <CardDescription className="text-zinc-600 dark:text-zinc-400">
+              {mode === "login"
+                ? "Use your operations email and password."
+                : "Create a dashboard user with email and password."}
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {mode === "login" && sessionExpiredNotice && (
+              <p className="text-sm text-amber-800 dark:text-amber-200/90 bg-amber-50 dark:bg-amber-950/40 border border-amber-200/80 dark:border-amber-800/50 rounded-md px-3 py-2">
+                Your session has expired. Please sign in again.
+              </p>
+            )}
+            {mode === "signup" && (
+              <div className="space-y-1">
+                <label
+                  className="text-xs text-muted-foreground block"
+                  htmlFor="dashboard-signup-name"
+                >
+                  Name (optional)
+                </label>
+                <Input
+                  id="dashboard-signup-name"
+                  type="text"
+                  placeholder="Your name"
+                  value={name}
+                  onChange={(e) => {
+                    setName(e.target.value)
+                    setHint(null)
+                  }}
+                />
+              </div>
+            )}
+            <div className="space-y-1">
+              <label
+                className="text-xs text-muted-foreground block"
+                htmlFor="dashboard-email"
+              >
+                Email
+              </label>
+              <Input
+                id="dashboard-email"
+                type="email"
+                placeholder="you@company.com"
+                value={email}
+                onChange={(e) => {
+                  setEmail(e.target.value)
+                  setHint(null)
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") void handleSubmit()
+                }}
+              />
+            </div>
+            <div className="relative">
+              <label
+                className="text-xs text-muted-foreground mb-1 block"
+                htmlFor="dashboard-password"
+              >
+                Password
+              </label>
+              <Input
+                id="dashboard-password"
+                type={show ? "text" : "password"}
+                placeholder="Enter password"
+                value={password}
+                onChange={(e) => {
+                  setPassword(e.target.value)
+                  setHint(null)
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") void handleSubmit()
+                }}
+                className="pr-16"
+              />
+              <button
+                type="button"
+                onClick={() => setShow((s) => !s)}
+                className="absolute right-3 top-8 text-xs text-muted-foreground hover:text-foreground"
+              >
+                {show ? "Hide" : "Show"}
+              </button>
+            </div>
+            {mode === "signup" && (
+              <div className="space-y-1">
+                <label
+                  className="text-xs text-muted-foreground mb-1 block"
+                  htmlFor="dashboard-password-confirm"
+                >
+                  Confirm password
+                </label>
+                <Input
+                  id="dashboard-password-confirm"
+                  type={show ? "text" : "password"}
+                  placeholder="Re-enter password"
+                  value={confirmPassword}
+                  onChange={(e) => {
+                    setConfirmPassword(e.target.value)
+                    setHint(null)
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") void handleSubmit()
+                  }}
+                />
+              </div>
+            )}
+            {hint && (
+              <p className="text-xs text-amber-700 dark:text-amber-400">
+                {hint}
+              </p>
+            )}
+            <Button
+              variant="secondary"
+              className="w-full font-semibold shadow-sm"
+              onClick={() => void handleSubmit()}
+              disabled={isSubmitting}
             >
-              Name (optional)
-            </label>
-            <Input
-              id="dashboard-signup-name"
-              type="text"
-              placeholder="Your name"
-              value={name}
-              onChange={(e) => {
-                setName(e.target.value)
-                setHint(null)
-              }}
-            />
-          </div>
-        )}
-        <div className="space-y-1">
-          <label
-            className="text-xs text-muted-foreground block"
-            htmlFor="dashboard-email"
-          >
-            Email
-          </label>
-          <Input
-            id="dashboard-email"
-            type="email"
-            placeholder="you@company.com"
-            value={email}
-            onChange={(e) => {
-              setEmail(e.target.value)
-              setHint(null)
-            }}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") void handleSubmit()
-            }}
-          />
-        </div>
-        <div className="relative">
-          <label
-            className="text-xs text-muted-foreground mb-1 block"
-            htmlFor="dashboard-password"
-          >
-            Password
-          </label>
-          <Input
-            id="dashboard-password"
-            type={show ? "text" : "password"}
-            placeholder="Enter password"
-            value={password}
-            onChange={(e) => {
-              setPassword(e.target.value)
-              setHint(null)
-            }}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") void handleSubmit()
-            }}
-            className="pr-16"
-          />
-          <button
-            type="button"
-            onClick={() => setShow((s) => !s)}
-            className="absolute right-3 top-8 text-xs text-muted-foreground hover:text-foreground"
-          >
-            {show ? "Hide" : "Show"}
-          </button>
-        </div>
-        {mode === "signup" && (
-          <div className="space-y-1">
-            <label
-              className="text-xs text-muted-foreground mb-1 block"
-              htmlFor="dashboard-password-confirm"
-            >
-              Confirm password
-            </label>
-            <Input
-              id="dashboard-password-confirm"
-              type={show ? "text" : "password"}
-              placeholder="Re-enter password"
-              value={confirmPassword}
-              onChange={(e) => {
-                setConfirmPassword(e.target.value)
-                setHint(null)
-              }}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") void handleSubmit()
-              }}
-            />
-          </div>
-        )}
-        {hint && (
-          <p className="text-xs text-amber-700 dark:text-amber-400">{hint}</p>
-        )}
-        <Button
-          className="w-full"
-          onClick={() => void handleSubmit()}
-          disabled={isSubmitting}
-        >
-          {isSubmitting
-            ? mode === "login"
-              ? "Signing in..."
-              : "Creating account..."
-            : mode === "login"
-              ? "Sign in"
-              : "Create account"}
-        </Button>
-        {mode === "signup" && (
-          <p className="text-xs text-muted-foreground text-center">
-            Already have an account?{" "}
-            <a href="/dashboard/login" className="underline underline-offset-2">
-              Sign in
-            </a>
-          </p>
-        )}
-      </CardContent>
-    </Card>
+              {isSubmitting
+                ? mode === "login"
+                  ? "Signing in..."
+                  : "Creating account..."
+                : mode === "login"
+                  ? "Sign in"
+                  : "Create account"}
+            </Button>
+            {mode === "signup" && (
+              <p className="text-xs text-muted-foreground text-center">
+                Already have an account?{" "}
+                <a
+                  href="/dashboard/login"
+                  className="underline underline-offset-2"
+                >
+                  Sign in
+                </a>
+              </p>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+    </div>
   )
 }

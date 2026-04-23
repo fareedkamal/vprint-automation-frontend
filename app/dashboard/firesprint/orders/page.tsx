@@ -50,7 +50,7 @@ export default function FireSprintOrdersPage() {
   const rows = data?.rows ?? []
 
   return (
-    <div className="p-6 space-y-4">
+    <div className="w-full min-w-0 p-6 lg:px-8 space-y-4">
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <div>
           <h1 className="text-lg font-semibold">FireSprint orders</h1>

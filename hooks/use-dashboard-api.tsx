@@ -15,6 +15,39 @@ import { buildRequestUrl } from "@/lib/utils"
 const JWT_STORAGE_KEY = "vprint_dashboard_jwt"
 const USER_EMAIL_STORAGE_KEY = "vprint_dashboard_user_email"
 
+let dashboard401Redirecting = false
+
+/**
+ * Clears stored JWT, then navigates to login so the user can sign in again.
+ * Use when a dashboard `internal/dashboard/*` request returns 401 (expired/invalid token).
+ * Idempotent: concurrent 401s only trigger one redirect.
+ */
+export function redirectToLoginAfterUnauthorized(): void {
+  if (typeof window === "undefined") return
+  if (dashboard401Redirecting) return
+  const pathname = window.location.pathname
+  if (
+    pathname.startsWith("/dashboard/login") ||
+    pathname.startsWith("/dashboard/signup")
+  ) {
+    return
+  }
+  dashboard401Redirecting = true
+  try {
+    localStorage.removeItem(JWT_STORAGE_KEY)
+    localStorage.removeItem(USER_EMAIL_STORAGE_KEY)
+  } catch {
+    // ignore
+  }
+  const next = new URLSearchParams()
+  next.set("expired", "1")
+  window.location.replace(`/dashboard/login?${next.toString()}`)
+}
+
+export function isAxios401(e: unknown): boolean {
+  return axios.isAxiosError(e) && e.response?.status === 401
+}
+
 // ── Auth context ──────────────────────────────────────────────────────────────
 
 type DashboardAuthCtx = {
@@ -116,10 +149,17 @@ export function useDashboardQuery<T>(
   return useQuery<T, Error>({
     queryKey: [path, searchParams ?? null],
     queryFn: async () => {
-      const res = await axios.get<T>(url, {
-        headers: { Authorization: `Bearer ${jwt}` },
-      })
-      return res.data
+      try {
+        const res = await axios.get<T>(url, {
+          headers: { Authorization: `Bearer ${jwt}` },
+        })
+        return res.data
+      } catch (e) {
+        if (isAxios401(e)) {
+          redirectToLoginAfterUnauthorized()
+        }
+        throw e
+      }
     },
     enabled: !!jwt && enabled !== false,
     refetchInterval,
@@ -151,6 +191,10 @@ export function useOrderControl() {
         })
         return true
       } catch (e: unknown) {
+        if (isAxios401(e)) {
+          redirectToLoginAfterUnauthorized()
+          return false
+        }
         const msg = axios.isAxiosError(e)
           ? ((e.response?.data as { error?: string })?.error ?? e.message)
           : String(e)
@@ -197,6 +241,10 @@ export function useFireSprintSync() {
       setResult(res.data)
       return true
     } catch (e: unknown) {
+      if (isAxios401(e)) {
+        redirectToLoginAfterUnauthorized()
+        return false
+      }
       const msg = axios.isAxiosError(e)
         ? ((e.response?.data as { error?: string })?.error ?? e.message)
         : String(e)

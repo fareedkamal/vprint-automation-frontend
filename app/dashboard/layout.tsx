@@ -16,6 +16,7 @@ import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { useEffect, useMemo, useRef, useState } from "react"
 import { DashboardAuthForm } from "@/components/dashboard/auth-form"
+import { UnleashLogo } from "@/components/dashboard/unleash-logo"
 import { Button } from "@/components/ui/button"
 import {
   DropdownMenu,
@@ -69,11 +70,7 @@ function JwtGate({ children }: { children: React.ReactNode }) {
   const { jwt } = useDashboardAuth()
 
   if (!jwt) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-950 p-4">
-        <DashboardAuthForm mode="login" />
-      </div>
-    )
+    return <DashboardAuthForm mode="login" />
   }
 
   return <>{children}</>
@@ -92,7 +89,7 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
     <JwtGate>
       <div className="flex min-h-screen">
         <DashboardSidebar />
-        <main className="flex-1 bg-gray-50 dark:bg-gray-900 overflow-auto">
+        <main className="flex-1 min-w-0 overflow-auto bg-gradient-to-br from-muted/50 via-background to-primary/5 dark:from-background dark:via-background dark:to-primary/10">
           <DashboardTopbar />
           {children}
         </main>
@@ -108,11 +105,22 @@ function DashboardSidebar() {
   const { clearJwt } = useDashboardAuth()
 
   return (
-    <aside className="w-56 min-h-screen border-r bg-white dark:bg-gray-950 flex flex-col shrink-0">
-      <div className="px-4 py-5 border-b">
-        <p className="font-semibold text-sm leading-tight">VPrint Automation</p>
-        <p className="text-xs text-muted-foreground mt-0.5">
-          Internal Dashboard
+    <aside
+      className="w-56 min-h-screen border-r border-zinc-800/90 bg-zinc-950 text-zinc-200 flex flex-col shrink-0
+      bg-[radial-gradient(120%_80%_at_0%_0%,hsl(328_40%_14%/0.4),transparent_50%)]
+    "
+    >
+      <div className="px-3 pt-4 pb-4 border-b border-zinc-800/90">
+        <div className="mb-1">
+          <UnleashLogo
+            className="w-full h-auto object-contain object-left max-h-[4.25rem] opacity-[0.98]"
+            width={200}
+            height={62}
+            priority
+          />
+        </div>
+        <p className="text-[10px] font-medium uppercase tracking-wider text-zinc-500 mt-1.5 pl-0.5">
+          VPrint · internal
         </p>
       </div>
 
@@ -126,8 +134,8 @@ function DashboardSidebar() {
               className={cn(
                 "flex items-center gap-2.5 px-3 py-2 rounded-md text-sm transition-colors",
                 active
-                  ? "bg-gray-100 dark:bg-gray-800 font-medium text-gray-900 dark:text-gray-100"
-                  : "text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-900 hover:text-gray-900 dark:hover:text-gray-100"
+                  ? "bg-secondary font-semibold text-secondary-foreground shadow-sm ring-1 ring-secondary/50 border-l-2 border-l-primary"
+                  : "text-zinc-400 hover:bg-white/[0.06] hover:text-zinc-100"
               )}
             >
               <Icon className="h-4 w-4 shrink-0" />
@@ -135,8 +143,12 @@ function DashboardSidebar() {
             </Link>
           )
         })}
-        <div className="pt-3 mt-2 border-t border-gray-200 dark:border-gray-800">
-          <p className="px-3 mb-1.5 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+        <div className="pt-3 mt-2 border-t border-zinc-800/90">
+          <p className="px-3 mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-zinc-500 flex items-center gap-1.5">
+            <span
+              className="inline-block size-1.5 rounded-full bg-[#dfe568] shadow-[0_0_10px_#dfe568/0.55]"
+              aria-hidden
+            />
             FireSprint
           </p>
           {FS_NAV.map(({ href, label, icon: Icon }) => {
@@ -148,8 +160,8 @@ function DashboardSidebar() {
                 className={cn(
                   "flex items-center gap-2.5 px-3 py-2 rounded-md text-sm transition-colors",
                   active
-                    ? "bg-gray-100 dark:bg-gray-800 font-medium text-gray-900 dark:text-gray-100"
-                    : "text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-900 hover:text-gray-900 dark:hover:text-gray-100"
+                    ? "bg-secondary font-semibold text-secondary-foreground shadow-sm ring-1 ring-secondary/50 border-l-2 border-l-primary"
+                    : "text-zinc-400 hover:bg-white/[0.06] hover:text-zinc-100"
                 )}
               >
                 <Icon className="h-4 w-4 shrink-0" />
@@ -160,11 +172,11 @@ function DashboardSidebar() {
         </div>
       </nav>
 
-      <div className="p-3 border-t">
+      <div className="p-3 border-t border-zinc-800/90">
         <button
           type="button"
           onClick={clearJwt}
-          className="flex items-center gap-2 text-sm text-muted-foreground hover:text-red-500 transition-colors px-3 py-2 w-full rounded-md hover:bg-red-50 dark:hover:bg-red-950"
+          className="flex items-center gap-2 text-sm text-zinc-500 hover:text-red-400 transition-colors px-3 py-2 w-full rounded-md hover:bg-red-500/10"
         >
           <LogOut className="h-4 w-4" />
           Logout
@@ -302,7 +314,7 @@ function DashboardTopbar() {
   }
 
   return (
-    <header className="h-14 border-b bg-white dark:bg-gray-950 px-4 sm:px-6 flex items-center justify-between">
+    <header className="h-14 border-b border-border bg-card/80 backdrop-blur-sm px-4 sm:px-6 flex items-center justify-between">
       <div>
         <p className="text-sm font-semibold">{pageTitle}</p>
         <p className="text-[11px] text-muted-foreground">VPrint Automation</p>
@@ -320,7 +332,7 @@ function DashboardTopbar() {
             <Button variant="outline" size="icon" className="relative">
               <Bell className="h-4 w-4" />
               {unreadCount > 0 && (
-                <span className="absolute -top-1 -right-1 min-w-4 h-4 px-1 rounded-full bg-red-600 text-white text-[10px] leading-4 text-center">
+                <span className="absolute -top-1 -right-1 min-w-4 h-4 px-1 rounded-full bg-secondary text-secondary-foreground text-[10px] leading-4 text-center font-semibold shadow-sm ring-1 ring-secondary-foreground/15">
                   {unreadCount > 9 ? "9+" : unreadCount}
                 </span>
               )}

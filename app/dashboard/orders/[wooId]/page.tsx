@@ -36,6 +36,10 @@ import {
 } from "@/components/ui/table"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useDashboardQuery, useOrderControl } from "@/hooks/use-dashboard-api"
+import {
+  AUTOMATION_EVENT_CARD,
+  AUTOMATION_EVENT_CARD_FALLBACK,
+} from "@/lib/automationEventStyles"
 import { cn } from "@/lib/utils"
 import type {
   AutomationEvent,
@@ -56,7 +60,7 @@ const ORDER_DETAIL_EVENTS_SKELETON_KEYS = [
 
 const STATUS_COLORS: Record<string, string> = {
   pending:
-    "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/40 dark:text-yellow-300",
+    "bg-[#dfe568]/40 text-[hsl(262_42%_18%)] dark:bg-[#dfe568]/20 dark:text-[#dfe568]",
   processing:
     "bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300",
   placed:
@@ -69,7 +73,7 @@ const STATUS_COLORS: Record<string, string> = {
   "in-review":
     "bg-purple-100 text-purple-800 dark:bg-purple-900/40 dark:text-purple-300",
   paused:
-    "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/40 dark:text-yellow-300",
+    "bg-[#dfe568]/40 text-[hsl(262_42%_18%)] dark:bg-[#dfe568]/20 dark:text-[#dfe568]",
   "stop requested":
     "bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300",
 }
@@ -104,7 +108,7 @@ function StatusIcon({ status }: { status: string }) {
   if (status === "processing")
     return <Loader2 className="h-4 w-4 text-blue-500 animate-spin shrink-0" />
   if (status === "pending")
-    return <Clock className="h-4 w-4 text-yellow-500 shrink-0" />
+    return <Clock className="h-4 w-4 text-[#dfe568] shrink-0" />
   if (status === "awaiting_approval")
     return <AlertTriangle className="h-4 w-4 text-orange-500 shrink-0" />
   return null
@@ -251,7 +255,7 @@ function LiveControlPanel({
           <Button
             size="sm"
             variant="outline"
-            className="h-7 text-xs gap-1.5 border-yellow-400 text-yellow-600 dark:text-yellow-400 bg-white dark:bg-transparent"
+            className="h-7 text-xs gap-1.5 border-[#dfe568] text-[hsl(262_35%_28%)] dark:text-[#dfe568] bg-white dark:bg-transparent"
             disabled={actionPending !== null}
             onClick={() => handleAction("pause")}
           >
@@ -586,14 +590,6 @@ function LineItemsTab({ order }: { order: Order }) {
 
 // ── Automation event timeline ─────────────────────────────────────────────────
 
-const EVENT_STYLE: Record<string, string> = {
-  order_run_start: "border-blue-400 bg-blue-50 dark:bg-blue-950/40",
-  order_run_end: "border-green-400 bg-green-50 dark:bg-green-950/40",
-  order_checkout_start: "border-purple-400 bg-purple-50 dark:bg-purple-950/40",
-  queue_snapshot: "border-gray-300 bg-gray-50 dark:bg-gray-800/40",
-  woo_webhook: "border-sky-400 bg-sky-50 dark:bg-sky-950/40",
-}
-
 function EventTimeline({ events }: { events: AutomationEvent[] }) {
   if (!events.length) {
     return (
@@ -611,9 +607,9 @@ function EventTimeline({ events }: { events: AutomationEvent[] }) {
         <div
           key={event.id}
           className={cn(
-            "border-l-4 rounded-r-lg px-4 py-3",
-            EVENT_STYLE[event.event_type] ??
-              "border-gray-300 bg-gray-50 dark:bg-gray-800/40"
+            "border-l-4 rounded-r-lg px-4 py-3 shadow-sm",
+            AUTOMATION_EVENT_CARD[event.event_type] ??
+              AUTOMATION_EVENT_CARD_FALLBACK
           )}
         >
           <div className="flex items-center justify-between gap-4 mb-1">
@@ -632,7 +628,7 @@ function EventTimeline({ events }: { events: AutomationEvent[] }) {
               <summary className="text-xs text-muted-foreground cursor-pointer hover:text-foreground select-none">
                 Payload ›
               </summary>
-              <pre className="text-xs mt-1.5 bg-white/60 dark:bg-black/20 rounded p-2 overflow-x-auto">
+              <pre className="text-xs mt-1.5 bg-zinc-100/80 dark:bg-zinc-950/50 rounded p-2 overflow-x-auto border border-border/50">
                 {JSON.stringify(event.payload, null, 2)}
               </pre>
             </details>
@@ -685,7 +681,7 @@ export default function OrderDetailPage({
   // ── Loading ──
   if (orderLoading) {
     return (
-      <div className="p-6 space-y-4">
+      <div className="w-full min-w-0 p-6 lg:px-8 space-y-4">
         <Skeleton className="h-8 w-52" />
         <Skeleton className="h-72 w-full" />
         <Skeleton className="h-52 w-full" />
@@ -696,7 +692,7 @@ export default function OrderDetailPage({
   // ── Error / not found ──
   if (orderError || !order) {
     return (
-      <div className="p-6">
+      <div className="w-full min-w-0 p-6 lg:px-8">
         <Card className="border-red-200 dark:border-red-800">
           <CardContent className="pt-6 text-red-600 dark:text-red-400">
             {orderError?.message ?? `Order #${wooId} not found.`}
@@ -725,7 +721,7 @@ export default function OrderDetailPage({
     order.status === "placed" ? 100 : order.status === "failed" ? 100 : null
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="w-full min-w-0 p-6 lg:px-8 space-y-6">
       {/* Header */}
       <div className="flex items-start gap-3">
         <Link
@@ -821,11 +817,11 @@ export default function OrderDetailPage({
 
       {/* Alert: in queue */}
       {pendingItems.length > 0 && processingItems.length === 0 && (
-        <Card className="border-yellow-200 bg-yellow-50 dark:border-yellow-800 dark:bg-yellow-950/30">
+        <Card className="border-[#dfe568]/50 bg-[#dfe568]/12 dark:border-[#dfe568]/35 dark:bg-[#dfe568]/10">
           <CardContent className="pt-4 pb-3">
             <div className="flex items-center gap-2">
-              <Clock className="h-4 w-4 text-yellow-500 shrink-0" />
-              <p className="text-sm font-medium text-yellow-700 dark:text-yellow-300">
+              <Clock className="h-4 w-4 text-[#dfe568] shrink-0" />
+              <p className="text-sm font-medium text-foreground/90">
                 {pendingItems.length} line{pendingItems.length > 1 ? "s" : ""}{" "}
                 waiting in queue
               </p>
@@ -835,23 +831,34 @@ export default function OrderDetailPage({
       )}
 
       {/* Tabs */}
-      <Tabs defaultValue="lines">
-        <TabsList>
-          <TabsTrigger value="lines">
+      <Tabs defaultValue="lines" className="w-full max-w-full">
+        <TabsList className="h-auto w-full flex-wrap justify-start gap-1 bg-muted/70 p-1.5 ring-1 ring-border/60">
+          <TabsTrigger
+            value="lines"
+            className="data-[state=active]:bg-card data-[state=active]:text-primary data-[state=active]:shadow-sm"
+          >
             Line Items ({(order.order_items ?? []).length})
           </TabsTrigger>
-          <TabsTrigger value="events">
+          <TabsTrigger
+            value="events"
+            className="data-[state=active]:bg-card data-[state=active]:text-primary data-[state=active]:shadow-sm"
+          >
             Automation Events (
             {eventsLoading ? "…" : (eventsData?.events.length ?? 0)})
           </TabsTrigger>
-          <TabsTrigger value="info">Order Info</TabsTrigger>
+          <TabsTrigger
+            value="info"
+            className="data-[state=active]:bg-card data-[state=active]:text-primary data-[state=active]:shadow-sm"
+          >
+            Order Info
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="lines" className="mt-4">
           <LineItemsTab order={order} />
         </TabsContent>
 
-        <TabsContent value="events" className="mt-4">
+        <TabsContent value="events" className="mt-4 w-full max-w-full">
           {eventsLoading ? (
             <div className="space-y-2.5">
               {ORDER_DETAIL_EVENTS_SKELETON_KEYS.map((rowKey) => (

@@ -17,6 +17,26 @@ function fullShotUrl(relative: string | null | undefined) {
   return buildRequestUrl(env.NEXT_PUBLIC_APP_URL, relative.replace(/^\/+/, ""))
 }
 
+/**
+ * API stores a short `result` from the poller (e.g. `ok` = run finished without a thrown error, `failed` = run crashed).
+ * We show clear English labels in the UI.
+ */
+function syncRunResultLabel(result: string | null | undefined): string {
+  if (result == null || result === "") return "—"
+  const r = result.toLowerCase().trim()
+  if (r === "ok") return "Successful"
+  if (r === "failed") return "Failed"
+  return result
+}
+
+function isSyncRunSuccessful(result: string | null | undefined): boolean {
+  return result?.toLowerCase().trim() === "ok"
+}
+
+function isSyncRunFailed(result: string | null | undefined): boolean {
+  return result?.toLowerCase().trim() === "failed"
+}
+
 function SyncRunCard({
   entry,
   defaultOpen,
@@ -37,12 +57,14 @@ function SyncRunCard({
             <span
               className={cn(
                 "rounded-full px-2 py-0.5 text-xs font-medium",
-                entry.result === "ok"
+                isSyncRunSuccessful(entry.result)
                   ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300"
-                  : "bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300"
+                  : isSyncRunFailed(entry.result)
+                    ? "bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300"
+                    : "bg-muted text-muted-foreground"
               )}
             >
-              {entry.result ?? "—"}
+              {syncRunResultLabel(entry.result)}
             </span>
             <span className="text-muted-foreground">
               {entry.trigger ?? "—"}
@@ -70,7 +92,7 @@ function SyncRunCard({
       </button>
       {open && (
         <div className="border-t px-3 py-2 space-y-2 text-sm">
-          {entry.result === "failed" && entry.error && (
+          {isSyncRunFailed(entry.result) && entry.error && (
             <div className="rounded-md border border-red-200 dark:border-red-900 bg-red-50 dark:bg-red-950/40 px-2 py-1.5 text-xs text-red-900 dark:text-red-200 break-words">
               <span className="font-semibold">What went wrong: </span>
               {entry.error}
@@ -170,7 +192,7 @@ export default function FireSprintEventsPage() {
   const entries = data?.entries ?? []
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="w-full min-w-0 p-6 lg:px-8 space-y-6">
       <div className="flex items-start justify-between gap-3 flex-wrap">
         <div>
           <h1 className="text-lg font-semibold">FireSprint log</h1>
@@ -181,7 +203,9 @@ export default function FireSprintEventsPage() {
         <div className="flex items-center gap-2">
           <Button
             type="button"
+            variant="secondary"
             size="sm"
+            className="font-semibold"
             onClick={() => run().then(() => refetch())}
             disabled={pending}
           >

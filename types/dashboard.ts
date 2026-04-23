@@ -122,6 +122,10 @@ export type FireSprintSyncFeedEntry = {
   id: string
   created_at: string
   trigger: string | null
+  /**
+   * Poller outcome code: `ok` means the run finished without throwing; `failed` means it
+   * aborted with an error (see `error`). Displayed in the UI as “Successful” / “Failed”.
+   */
   result: string | null
   /** When the sync threw — exception message (not the same as “no tracking”). */
   error: string | null

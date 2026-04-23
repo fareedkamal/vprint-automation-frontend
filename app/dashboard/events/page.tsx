@@ -23,6 +23,10 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { useDashboardQuery } from "@/hooks/use-dashboard-api"
+import {
+  AUTOMATION_EVENT_PILL,
+  AUTOMATION_EVENT_PILL_FALLBACK,
+} from "@/lib/automationEventStyles"
 import { cn } from "@/lib/utils"
 import type { EventsResponse, EventTypesResponse } from "@/types/dashboard"
 
@@ -43,25 +47,12 @@ const EVENT_TABLE_SKELETON_KEYS = [
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-const EVENT_COLORS: Record<string, string> = {
-  order_run_start:
-    "bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300",
-  order_run_end:
-    "bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300",
-  order_checkout_start:
-    "bg-purple-100 text-purple-800 dark:bg-purple-900/40 dark:text-purple-300",
-  queue_snapshot:
-    "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300",
-  woo_webhook: "bg-sky-100 text-sky-800 dark:bg-sky-900/40 dark:text-sky-300",
-}
-
 function EventTypePill({ type }: { type: string }) {
   return (
     <span
       className={cn(
         "inline-flex items-center rounded-full px-2 py-0.5 text-xs font-mono font-medium",
-        EVENT_COLORS[type] ??
-          "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300"
+        AUTOMATION_EVENT_PILL[type] ?? AUTOMATION_EVENT_PILL_FALLBACK
       )}
     >
       {type}
@@ -113,7 +104,7 @@ export default function EventsPage() {
   const hasFilter = !!(applied.wooId || applied.type)
 
   return (
-    <div className="p-6 space-y-4">
+    <div className="w-full min-w-0 p-6 lg:px-8 space-y-4">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -182,7 +173,12 @@ export default function EventsPage() {
                 </SelectContent>
               </Select>
             </div>
-            <Button size="sm" onClick={applyFilter}>
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              onClick={applyFilter}
+            >
               <Search className="h-4 w-4 mr-1.5" />
               Filter
             </Button>

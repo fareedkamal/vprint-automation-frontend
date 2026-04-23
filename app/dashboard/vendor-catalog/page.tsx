@@ -13,7 +13,11 @@ import {
   CardTitle,
 } from "@/components/ui/card"
 import { env } from "@/env"
-import { useDashboardAuth } from "@/hooks/use-dashboard-api"
+import {
+  isAxios401,
+  redirectToLoginAfterUnauthorized,
+  useDashboardAuth,
+} from "@/hooks/use-dashboard-api"
 import { buildRequestUrl } from "@/lib/utils"
 
 const SHEET_GID = 70385341
@@ -50,6 +54,10 @@ export default function VendorCatalogPage() {
       })
       setResult(res.data)
     } catch (e: unknown) {
+      if (isAxios401(e)) {
+        redirectToLoginAfterUnauthorized()
+        return
+      }
       const msg = axios.isAxiosError(e)
         ? ((e.response?.data as { error?: string })?.error ?? e.message)
         : String(e)
@@ -60,18 +68,18 @@ export default function VendorCatalogPage() {
   }, [jwt])
 
   return (
-    <div className="p-6 max-w-2xl mx-auto space-y-6">
+    <div className="w-full min-w-0 p-6 lg:px-8 space-y-6">
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">
           Vendor catalog
         </h1>
-        <p className="text-sm text-muted-foreground mt-1">
+        <p className="text-sm text-muted-foreground mt-1.5 sm:max-w-3xl">
           Sync product rows from the vendor Google Sheet into Supabase (same
           mapping as the n8n sheet flow).
         </p>
       </div>
 
-      <Card>
+      <Card className="w-full">
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-lg">
             <FileSpreadsheet className="h-5 w-5" />
@@ -84,18 +92,25 @@ export default function VendorCatalogPage() {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <Link
-            href={SHEET_URL}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-sm text-primary underline-offset-4 hover:underline break-all"
-          >
-            {SHEET_URL}
-          </Link>
+          <div className="rounded-lg border border-border/80 bg-muted/30 px-3 py-2.5">
+            <p className="text-xs font-medium text-muted-foreground mb-1.5">
+              Sheet link
+            </p>
+            <Link
+              href={SHEET_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-sm text-primary underline-offset-4 hover:underline break-all"
+            >
+              {SHEET_URL}
+            </Link>
+          </div>
 
           <div className="flex flex-wrap items-center gap-3">
             <Button
               type="button"
+              variant="secondary"
+              className="font-semibold"
               onClick={() => void sync()}
               disabled={!jwt || loading}
             >
