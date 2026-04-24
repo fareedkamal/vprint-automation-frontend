@@ -180,6 +180,7 @@ function LiveControlPanel({
   if (!isThisOrder) return null
 
   const pct = proc?.progressPct ?? 0
+  const isPaused = proc?.controlState === "paused"
   const itemCount =
     (proc?.totalItems ?? 0) > 1
       ? `Item ${(proc?.currentItemIndex ?? 0) + 1} / ${proc?.totalItems}`
@@ -253,34 +254,38 @@ function LiveControlPanel({
 
         {/* Controls */}
         <div className="flex flex-wrap gap-2 pt-1 border-t border-blue-200 dark:border-blue-800">
-          <Button
-            size="sm"
-            variant="outline"
-            className="h-7 text-xs gap-1.5 border-[#dfe568] text-[hsl(262_35%_28%)] dark:text-[#dfe568] bg-white dark:bg-transparent"
-            disabled={actionPending !== null}
-            onClick={() => handleAction("pause")}
-          >
-            {actionPending === "pause" ? (
-              <Loader2 className="h-3 w-3 animate-spin" />
-            ) : (
-              <Pause className="h-3 w-3" />
-            )}
-            Pause
-          </Button>
-          <Button
-            size="sm"
-            variant="outline"
-            className="h-7 text-xs gap-1.5 border-green-400 text-green-600 dark:text-green-400 bg-white dark:bg-transparent"
-            disabled={actionPending !== null}
-            onClick={() => handleAction("resume")}
-          >
-            {actionPending === "resume" ? (
-              <Loader2 className="h-3 w-3 animate-spin" />
-            ) : (
-              <Play className="h-3 w-3" />
-            )}
-            Resume
-          </Button>
+          {!isPaused && (
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-7 text-xs gap-1.5 border-[#dfe568] text-[hsl(262_35%_28%)] dark:text-[#dfe568] bg-white dark:bg-transparent"
+              disabled={actionPending !== null}
+              onClick={() => handleAction("pause")}
+            >
+              {actionPending === "pause" ? (
+                <Loader2 className="h-3 w-3 animate-spin" />
+              ) : (
+                <Pause className="h-3 w-3" />
+              )}
+              Pause
+            </Button>
+          )}
+          {isPaused && (
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-7 text-xs gap-1.5 border-green-400 text-green-600 dark:text-green-400 bg-white dark:bg-transparent"
+              disabled={actionPending !== null}
+              onClick={() => handleAction("resume")}
+            >
+              {actionPending === "resume" ? (
+                <Loader2 className="h-3 w-3 animate-spin" />
+              ) : (
+                <Play className="h-3 w-3" />
+              )}
+              Resume
+            </Button>
+          )}
           <Button
             size="sm"
             variant="outline"

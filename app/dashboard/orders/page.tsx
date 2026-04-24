@@ -617,38 +617,56 @@ export default function OrdersPage({
                 )}
               </div>
               <div className="flex flex-wrap gap-2">
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="gap-1.5"
-                  disabled={
-                    selectedOrder.id !== activeOrderId || actionPending !== null
-                  }
-                  onClick={() => handleOrderAction("pause", selectedOrder)}
-                >
-                  {actionPending === "pause" ? (
-                    <Loader2 className="h-3 w-3 animate-spin" />
-                  ) : (
-                    <Pause className="h-3 w-3" />
-                  )}
-                  Pause
-                </Button>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="gap-1.5"
-                  disabled={
-                    selectedOrder.id !== activeOrderId || actionPending !== null
-                  }
-                  onClick={() => handleOrderAction("resume", selectedOrder)}
-                >
-                  {actionPending === "resume" ? (
-                    <Loader2 className="h-3 w-3 animate-spin" />
-                  ) : (
-                    <Play className="h-3 w-3" />
-                  )}
-                  Resume
-                </Button>
+                {(() => {
+                  const isActiveSelected = selectedOrder.id === activeOrderId
+                  const runtimePaused =
+                    isActiveSelected &&
+                    overview?.poller.processing.active &&
+                    overview.poller.processing.orderId === selectedOrder.id &&
+                    overview.poller.processing.controlState === "paused"
+                  const orderPaused = selectedOrder.control_state === "paused"
+                  const isPaused = Boolean(runtimePaused || orderPaused)
+                  return (
+                    <>
+                      {!isPaused && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="gap-1.5"
+                          disabled={!isActiveSelected || actionPending !== null}
+                          onClick={() =>
+                            handleOrderAction("pause", selectedOrder)
+                          }
+                        >
+                          {actionPending === "pause" ? (
+                            <Loader2 className="h-3 w-3 animate-spin" />
+                          ) : (
+                            <Pause className="h-3 w-3" />
+                          )}
+                          Pause
+                        </Button>
+                      )}
+                      {isPaused && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="gap-1.5"
+                          disabled={!isActiveSelected || actionPending !== null}
+                          onClick={() =>
+                            handleOrderAction("resume", selectedOrder)
+                          }
+                        >
+                          {actionPending === "resume" ? (
+                            <Loader2 className="h-3 w-3 animate-spin" />
+                          ) : (
+                            <Play className="h-3 w-3" />
+                          )}
+                          Resume
+                        </Button>
+                      )}
+                    </>
+                  )
+                })()}
                 <Button
                   size="sm"
                   variant="outline"

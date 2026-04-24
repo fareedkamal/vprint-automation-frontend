@@ -240,6 +240,7 @@ function PollerCard({
   }
 
   const pct = proc.active ? (proc.progressPct ?? 0) : 0
+  const isPaused = proc.active && proc.controlState === "paused"
   const itemCount =
     proc.active && (proc.totalItems ?? 0) > 1
       ? `Item ${(proc.currentItemIndex ?? 0) + 1} / ${proc.totalItems}`
@@ -331,34 +332,38 @@ function PollerCard({
         {/* Control buttons */}
         {proc.active && proc.orderId && (
           <div className="flex flex-wrap gap-2 pt-1 border-t border-border">
-            <Button
-              size="sm"
-              variant="outline"
-              className="h-7 text-xs gap-1.5 border-[#dfe568] text-[hsl(262_35%_28%)] dark:text-[#dfe568] hover:bg-[#dfe568]/15 dark:hover:bg-[#dfe568]/10"
-              disabled={actionPending !== null}
-              onClick={() => handleAction("pause")}
-            >
-              {actionPending === "pause" ? (
-                <Loader2 className="h-3 w-3 animate-spin" />
-              ) : (
-                <Pause className="h-3 w-3" />
-              )}
-              Pause
-            </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              className="h-7 text-xs gap-1.5 border-green-400 text-green-600 dark:text-green-400 hover:bg-green-50 dark:hover:bg-green-950/30"
-              disabled={actionPending !== null}
-              onClick={() => handleAction("resume")}
-            >
-              {actionPending === "resume" ? (
-                <Loader2 className="h-3 w-3 animate-spin" />
-              ) : (
-                <Play className="h-3 w-3" />
-              )}
-              Resume
-            </Button>
+            {!isPaused && (
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-7 text-xs gap-1.5 border-[#dfe568] text-[hsl(262_35%_28%)] dark:text-[#dfe568] hover:bg-[#dfe568]/15 dark:hover:bg-[#dfe568]/10"
+                disabled={actionPending !== null}
+                onClick={() => handleAction("pause")}
+              >
+                {actionPending === "pause" ? (
+                  <Loader2 className="h-3 w-3 animate-spin" />
+                ) : (
+                  <Pause className="h-3 w-3" />
+                )}
+                Pause
+              </Button>
+            )}
+            {isPaused && (
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-7 text-xs gap-1.5 border-green-400 text-green-600 dark:text-green-400 hover:bg-green-50 dark:hover:bg-green-950/30"
+                disabled={actionPending !== null}
+                onClick={() => handleAction("resume")}
+              >
+                {actionPending === "resume" ? (
+                  <Loader2 className="h-3 w-3 animate-spin" />
+                ) : (
+                  <Play className="h-3 w-3" />
+                )}
+                Resume
+              </Button>
+            )}
             <Button
               size="sm"
               variant="outline"
