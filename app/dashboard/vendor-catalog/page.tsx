@@ -24,6 +24,15 @@ const SHEET_GID = 70385341
 const SHEET_URL =
   "https://docs.google.com/spreadsheets/d/1L0S04ApdUTbz3FDH3jGa9pBs5w5YNeiBJnjt7UfC_O0/edit?gid=70385341#gid=70385341"
 
+type VendorSheetParseStats = {
+  header_row_index: number
+  rows_below_header: number
+  rows_with_sku: number
+  rows_skipped_empty_sku: number
+  sku_tokens_parsed: number
+  duplicate_sku_tokens_merged: number
+}
+
 type SyncResponse = {
   spreadsheet_id: string
   sheet_gid: number
@@ -31,6 +40,7 @@ type SyncResponse = {
   rows_in_sheet: number
   products_parsed: number
   upserted: number
+  parse_stats: VendorSheetParseStats
 }
 
 export default function VendorCatalogPage() {
@@ -137,27 +147,56 @@ export default function VendorCatalogPage() {
           ) : null}
 
           {result ? (
-            <div className="rounded-md border bg-muted/40 p-4 text-sm space-y-1">
+            <div className="rounded-md border bg-muted/40 p-4 text-sm space-y-2">
               <p>
                 <span className="text-muted-foreground">Sheet:</span>{" "}
                 {result.sheet_title ?? "—"}
               </p>
-              <p>
-                <span className="text-muted-foreground">
-                  Data rows (excl. header):
-                </span>{" "}
-                {result.rows_in_sheet}
+              <p className="text-muted-foreground text-xs leading-relaxed">
+                Supabase keeps{" "}
+                <strong className="text-foreground">one row per SKU</strong>.
+                Blank spacer rows and repeat SKUs do not add extra product rows;
+                the same SKU updated lower in the sheet replaces the earlier
+                one.
               </p>
-              <p>
-                <span className="text-muted-foreground">
-                  Products (unique SKU):
-                </span>{" "}
-                {result.products_parsed}
-              </p>
-              <p>
-                <span className="text-muted-foreground">Upserted:</span>{" "}
-                {result.upserted}
-              </p>
+              <div className="space-y-1 border-t border-border/60 pt-2">
+                <p>
+                  <span className="text-muted-foreground">
+                    Row slots below header (incl. blanks):
+                  </span>{" "}
+                  {result.rows_in_sheet}
+                </p>
+                <p>
+                  <span className="text-muted-foreground">
+                    Rows with a parsed SKU:
+                  </span>{" "}
+                  {result.parse_stats.rows_with_sku}
+                </p>
+                <p>
+                  <span className="text-muted-foreground">
+                    Rows skipped (no SKU in column):
+                  </span>{" "}
+                  {result.parse_stats.rows_skipped_empty_sku}
+                </p>
+                <p>
+                  <span className="text-muted-foreground">
+                    SKU lines parsed (before merge):
+                  </span>{" "}
+                  {result.parse_stats.sku_tokens_parsed}
+                </p>
+                <p>
+                  <span className="text-muted-foreground">
+                    Duplicate SKU lines merged (last wins):
+                  </span>{" "}
+                  {result.parse_stats.duplicate_sku_tokens_merged}
+                </p>
+                <p>
+                  <span className="text-muted-foreground">
+                    Unique SKUs / upserted:
+                  </span>{" "}
+                  {result.products_parsed} / {result.upserted}
+                </p>
+              </div>
             </div>
           ) : null}
         </CardContent>
