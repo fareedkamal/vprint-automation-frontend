@@ -45,6 +45,17 @@ export type CompletionStats = {
   completion_rate: number | null
 }
 
+/** Global poller gates from automation server (`pipelineControlService`). */
+export type PipelineControlOverview = {
+  manual_stop: boolean
+  business_hours_enforced: boolean
+  poll_allowed: boolean
+  within_business_hours_central: boolean
+  central_time_display: string
+  blocked_reason: "manual_stop" | "outside_business_hours" | null
+  next_open_hint: string | null
+}
+
 export type OverviewData = {
   generated_at: string
   poller: PollerSnapshot
@@ -53,6 +64,7 @@ export type OverviewData = {
   order_status_counts: Record<string, number>
   firesprint_line_completion: CompletionStats
   webhooks_logged_last_24h: number
+  pipeline_control?: PipelineControlOverview
 }
 
 export type OrderItem = {

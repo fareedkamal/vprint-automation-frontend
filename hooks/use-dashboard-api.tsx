@@ -11,6 +11,7 @@ import {
 } from "react"
 import { env } from "@/env"
 import { buildRequestUrl } from "@/lib/utils"
+import type { PipelineControlOverview } from "@/types/dashboard"
 
 const JWT_STORAGE_KEY = "vprint_dashboard_jwt"
 const USER_EMAIL_STORAGE_KEY = "vprint_dashboard_user_email"
@@ -218,6 +219,53 @@ type FireSprintSyncResult = {
   notesPosted: number
   errors: number
   screenshots: string[]
+}
+
+export type PipelineSettingsResponse = {
+  ok: boolean
+  pipeline_control: PipelineControlOverview
+}
+
+export function usePipelineControl() {
+  const { jwt } = useDashboardAuth()
+  const [pending, setPending] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  const patch = useCallback(
+    async (body: {
+      manual_stop?: boolean
+      business_hours_enforced?: boolean
+    }): Promise<PipelineSettingsResponse | null> => {
+      if (!jwt) return null
+      setPending(true)
+      setError(null)
+      try {
+        const url = buildRequestUrl(
+          env.NEXT_PUBLIC_APP_URL,
+          "internal/dashboard/pipeline/settings"
+        )
+        const res = await axios.post<PipelineSettingsResponse>(url, body, {
+          headers: { Authorization: `Bearer ${jwt}` },
+        })
+        return res.data
+      } catch (e: unknown) {
+        if (isAxios401(e)) {
+          redirectToLoginAfterUnauthorized()
+          return null
+        }
+        const msg = axios.isAxiosError(e)
+          ? ((e.response?.data as { error?: string })?.error ?? e.message)
+          : String(e)
+        setError(msg)
+        return null
+      } finally {
+        setPending(false)
+      }
+    },
+    [jwt]
+  )
+
+  return { patch, pending, error }
 }
 
 export function useFireSprintSync() {

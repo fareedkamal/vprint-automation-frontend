@@ -5,12 +5,14 @@ import {
   Activity,
   AlertCircle,
   Bug,
+  CalendarClock,
   CheckCircle2,
   Clock,
   ExternalLink,
   Loader2,
   Pause,
   Play,
+  Shield,
   Square,
   TrendingUp,
   Webhook,
@@ -19,14 +21,17 @@ import {
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Checkbox } from "@/components/ui/checkbox"
+import { Label } from "@/components/ui/label"
 import { Skeleton } from "@/components/ui/skeleton"
 import {
   useDashboardQuery,
   useFireSprintSync,
   useOrderControl,
+  usePipelineControl,
 } from "@/hooks/use-dashboard-api"
 import { cn } from "@/lib/utils"
-import type { OverviewData } from "@/types/dashboard"
+import type { OverviewData, PipelineControlOverview } from "@/types/dashboard"
 
 const OVERVIEW_CARD_SKELETON_KEYS = ["oc1", "oc2", "oc3", "oc4"] as const
 const OVERVIEW_STAT_SKELETON_KEYS = [
@@ -197,6 +202,124 @@ function ProgressBar({
         />
       </div>
     </div>
+  )
+}
+
+// ── Global pipeline gate (business hours + manual stop) ───────────────────────
+
+function PipelineControlCard({
+  pipeline,
+  onUpdated,
+}: {
+  pipeline: PipelineControlOverview
+  onUpdated: () => void
+}) {
+  const { patch, pending, error } = usePipelineControl()
+  const pc = pipeline
+
+  async function setManualStop(next: boolean) {
+    if (next) {
+      const ok = window.confirm(
+        "Turn ON global pipeline stop? No new FireSprint automation runs will start until you turn this off."
+      )
+      if (!ok) return
+    }
+    const r = await patch({ manual_stop: next })
+    if (r?.ok) onUpdated()
+  }
+
+  async function setBusinessHours(next: boolean) {
+    const r = await patch({ business_hours_enforced: next })
+    if (r?.ok) onUpdated()
+  }
+
+  return (
+    <Card className="shadow-sm border-amber-200/60 dark:border-amber-900/40">
+      <CardHeader className="pb-2">
+        <CardTitle className="text-sm font-medium flex items-center gap-2 text-muted-foreground">
+          <Shield className="h-4 w-4" />
+          Pipeline schedule
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        <div className="flex items-center gap-2 flex-wrap">
+          <span
+            className={cn(
+              "h-2.5 w-2.5 rounded-full shrink-0",
+              pc.poll_allowed ? "bg-green-500" : "bg-amber-500"
+            )}
+          />
+          <span className="text-sm font-semibold">
+            {pc.poll_allowed ? "New runs allowed" : "New runs blocked"}
+          </span>
+        </div>
+        <p className="text-xs text-muted-foreground flex items-center gap-1.5">
+          <CalendarClock className="h-3.5 w-3.5 shrink-0" />
+          {pc.central_time_display}
+          {!pc.within_business_hours_central && pc.business_hours_enforced && (
+            <span className="text-amber-700 dark:text-amber-300">
+              · Outside Mon–Fri window
+            </span>
+          )}
+        </p>
+        {!pc.poll_allowed && pc.next_open_hint && (
+          <p className="text-xs rounded-md bg-amber-50 dark:bg-amber-950/40 text-amber-900 dark:text-amber-200 px-2 py-1.5 leading-snug">
+            {pc.next_open_hint}
+          </p>
+        )}
+
+        <div className="flex items-start gap-2 pt-1">
+          <Checkbox
+            id="pipeline-manual-stop"
+            checked={pc.manual_stop}
+            disabled={pending}
+            onCheckedChange={(v) => {
+              void setManualStop(v === true)
+            }}
+          />
+          <div className="grid gap-1.5 leading-none">
+            <Label
+              htmlFor="pipeline-manual-stop"
+              className="text-sm font-medium cursor-pointer"
+            >
+              Stop pipeline (manual)
+            </Label>
+            <p className="text-xs text-muted-foreground font-normal">
+              Blocks every new poll cycle until unchecked. Current run (if any)
+              is controlled with Pause / Stop on the card below.
+            </p>
+          </div>
+        </div>
+
+        <div className="flex items-start gap-2">
+          <Checkbox
+            id="pipeline-business-hours"
+            checked={pc.business_hours_enforced}
+            disabled={pending}
+            onCheckedChange={(v) => {
+              void setBusinessHours(v === true)
+            }}
+          />
+          <div className="grid gap-1.5 leading-none">
+            <Label
+              htmlFor="pipeline-business-hours"
+              className="text-sm font-medium cursor-pointer"
+            >
+              Business hours only (Central)
+            </Label>
+            <p className="text-xs text-muted-foreground font-normal">
+              Mon–Fri, 9:00 AM–5:59 PM America/Chicago. Orders outside that
+              window stay pending until the next open (e.g. weekend → Monday 9
+              AM CT).
+            </p>
+          </div>
+        </div>
+
+        {error && (
+          <p className="text-xs text-red-600 dark:text-red-400">{error}</p>
+        )}
+      </CardContent>
+    </Card>
   )
 }
 
@@ -541,7 +664,20 @@ export default function DashboardPage() {
 
       {/* Top: Poller · Queue · Completion · Webhooks */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-        <div className="lg:col-span-2">
+        <div className="lg:col-span-2 flex flex-col gap-4 min-w-0">
+          {data.pipeline_control ? (
+            <PipelineControlCard
+              pipeline={data.pipeline_control}
+              onUpdated={invalidateOverview}
+            />
+          ) : (
+            <Card className="border-dashed">
+              <CardContent className="pt-4 text-xs text-muted-foreground">
+                Update the automation server to enable pipeline schedule
+                controls on the dashboard.
+              </CardContent>
+            </Card>
+          )}
           <PollerCard data={data} onAction={invalidateOverview} />
         </div>
 
