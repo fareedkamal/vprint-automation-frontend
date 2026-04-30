@@ -12,6 +12,7 @@ import {
   Loader2,
   Pause,
   Play,
+  Power,
   Shield,
   Square,
   TrendingUp,
@@ -24,6 +25,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Label } from "@/components/ui/label"
 import { Skeleton } from "@/components/ui/skeleton"
+import { Switch } from "@/components/ui/switch"
 import {
   useDashboardQuery,
   useFireSprintSync,
@@ -268,27 +270,43 @@ function PipelineControlCard({
           </p>
         )}
 
-        <div className="flex items-start gap-2 pt-1">
-          <Checkbox
-            id="pipeline-manual-stop"
-            checked={pc.manual_stop}
-            disabled={pending}
-            onCheckedChange={(v) => {
-              void setManualStop(v === true)
-            }}
-          />
-          <div className="grid gap-1.5 leading-none">
-            <Label
-              htmlFor="pipeline-manual-stop"
-              className="text-sm font-medium cursor-pointer"
-            >
-              Stop pipeline (manual)
-            </Label>
-            <p className="text-xs text-muted-foreground font-normal">
-              Blocks every new poll cycle until unchecked. Current run (if any)
-              is controlled with Pause / Stop on the card below.
+        <div className="flex items-center justify-between gap-4 rounded-lg border border-border/80 bg-muted/30 px-3 py-3">
+          <div className="min-w-0 space-y-1">
+            <div className="flex flex-wrap items-center gap-2">
+              <Power className="h-4 w-4 shrink-0 text-muted-foreground" />
+              <span className="text-sm font-semibold text-foreground">
+                Automation pipeline
+              </span>
+              <span
+                className={cn(
+                  "rounded-full px-2 py-0.5 text-[11px] font-bold tracking-wide",
+                  pc.manual_stop
+                    ? "bg-muted text-muted-foreground"
+                    : "bg-green-500/15 text-green-700 dark:bg-green-500/20 dark:text-green-400"
+                )}
+              >
+                {pc.manual_stop ? "OFF" : "ON"}
+              </span>
+            </div>
+            <p className="text-xs text-muted-foreground leading-snug">
+              {pc.manual_stop
+                ? "Paused — the server will not start new FireSprint poll cycles. Use the poller card below for the current order."
+                : "Running — the server may start new work when the schedule above allows it."}
             </p>
           </div>
+          <Switch
+            className="shrink-0"
+            checked={!pc.manual_stop}
+            disabled={pending}
+            onCheckedChange={(on) => {
+              void setManualStop(!on)
+            }}
+            aria-label={
+              pc.manual_stop
+                ? "Turn automation pipeline on"
+                : "Turn automation pipeline off"
+            }
+          />
         </div>
 
         <div className="flex items-start gap-2">
@@ -672,9 +690,32 @@ export default function DashboardPage() {
             />
           ) : (
             <Card className="border-dashed">
-              <CardContent className="pt-4 text-xs text-muted-foreground">
-                Update the automation server to enable pipeline schedule
-                controls on the dashboard.
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium text-muted-foreground">
+                  Pipeline control
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2 text-xs text-muted-foreground leading-relaxed">
+                <p>
+                  The overview response did not include{" "}
+                  <code className="rounded bg-muted px-1 py-0.5 font-mono text-[11px]">
+                    pipeline_control
+                  </code>
+                  . That usually means the automation API you are calling is an
+                  older build.
+                </p>
+                <p>
+                  Deploy current{" "}
+                  <span className="font-mono text-foreground">
+                    vprint-automation
+                  </span>{" "}
+                  (it adds this field to{" "}
+                  <code className="rounded bg-muted px-1 py-0.5 font-mono text-[11px]">
+                    GET /internal/dashboard/overview
+                  </code>
+                  ) so this page can show the pipeline ON/OFF switch and
+                  schedule toggles.
+                </p>
               </CardContent>
             </Card>
           )}
