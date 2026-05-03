@@ -80,6 +80,9 @@ export type OrderItem = {
   firesprint_order_url?: string | null
   artwork_url: string | null
   woo_line_item_id: string | null
+  /** Anthropic Messages API — add-to-cart vision usage for this line */
+  ai_input_tokens?: number | null
+  ai_output_tokens?: number | null
 }
 
 export type Order = {
@@ -97,6 +100,10 @@ export type Order = {
   completed_at?: string | null
   /** Live control state attached by backend dashboard endpoint */
   control_state?: "paused" | "stop_requested" | null
+  /** Anthropic input tokens during shared checkout (not per-SKU) */
+  ai_checkout_input_tokens?: number | null
+  /** Anthropic output tokens during checkout */
+  ai_checkout_output_tokens?: number | null
   order_items: OrderItem[]
 }
 
@@ -189,6 +196,8 @@ export type FireSprintShipmentRow = {
   last_firesprint_sync_at: string | null
   firesprint_last_screenshot_url: string | null
   last_shipment_note_tracking: string | null
+  /** True after automation posted the Woo customer shipment/tracking note for this line. */
+  woo_shipment_customer_note_sent?: boolean | null
   woo_order_id: number | null
   customer_name: string | null
   customer_email: string | null

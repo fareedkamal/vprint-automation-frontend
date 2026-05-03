@@ -132,6 +132,21 @@ function FsLineSummary({ items }: { items: Order["order_items"] }) {
   )
 }
 
+function sumOrderAnthropicTokens(order: Order): { in: number; out: number } {
+  let inp = order.ai_checkout_input_tokens ?? 0
+  let out = order.ai_checkout_output_tokens ?? 0
+  for (const li of order.order_items ?? []) {
+    inp += Number(li.ai_input_tokens ?? 0)
+    out += Number(li.ai_output_tokens ?? 0)
+  }
+  return { in: inp, out: out }
+}
+
+function formatAnthropicTokenSummary(inp: number, out: number): string {
+  if (!inp && !out) return "—"
+  return `${(inp + out).toLocaleString()} tok (${inp.toLocaleString()} in · ${out.toLocaleString()} out)`
+}
+
 function fmtDuration(
   startIso: string | null | undefined,
   endIso: string | null | undefined
@@ -413,6 +428,9 @@ export default function OrdersPage({
                     </span>
                   </TableHead>
                   <TableHead>FS Lines</TableHead>
+                  <TableHead className="w-[140px] text-right">
+                    AI usage
+                  </TableHead>
                   <TableHead className="w-24">Actions</TableHead>
                   <TableHead className="w-32">Created</TableHead>
                   <TableHead className="w-10" />
@@ -422,7 +440,7 @@ export default function OrdersPage({
                 {data.orders.length === 0 && (
                   <TableRow>
                     <TableCell
-                      colSpan={9}
+                      colSpan={10}
                       className="text-center text-muted-foreground py-14 text-sm"
                     >
                       No orders found.
@@ -438,6 +456,7 @@ export default function OrdersPage({
                     order.completed_at ?? (isActive ? null : undefined)
                   )
                   const isLiveDuration = isActive && !order.completed_at
+                  const aiTot = sumOrderAnthropicTokens(order)
 
                   return (
                     <TableRow
@@ -498,6 +517,11 @@ export default function OrdersPage({
                       </TableCell>
                       <TableCell>
                         <FsLineSummary items={order.order_items ?? []} />
+                      </TableCell>
+                      <TableCell className="text-right text-xs font-mono text-muted-foreground leading-snug max-w-[140px]">
+                        <span title="Anthropic API tokens (input + output). Line items = add-to-cart; checkout = shared payment/shipping vision.">
+                          {formatAnthropicTokenSummary(aiTot.in, aiTot.out)}
+                        </span>
                       </TableCell>
                       <TableCell>
                         <Button

@@ -312,6 +312,28 @@ function LiveControlPanel({
   )
 }
 
+// ── AI token display (Anthropic Messages API; same units as console billing) ─
+
+function formatAiTokenPair(
+  inp: number | null | undefined,
+  out: number | null | undefined
+): string {
+  const i = inp ?? 0
+  const o = out ?? 0
+  if (!i && !o) return "—"
+  return `${(i + o).toLocaleString()} tok · ${i.toLocaleString()} in / ${o.toLocaleString()} out`
+}
+
+function sumLineItemsAiTokens(order: Order): { in: number; out: number } {
+  let inp = 0
+  let out = 0
+  for (const li of order.order_items ?? []) {
+    inp += Number(li.ai_input_tokens ?? 0)
+    out += Number(li.ai_output_tokens ?? 0)
+  }
+  return { in: inp, out: out }
+}
+
 // ── Order info ────────────────────────────────────────────────────────────────
 
 function OrderInfoCard({
@@ -390,6 +412,35 @@ function OrderInfoCard({
           —
         </span>
       ),
+    ],
+    [
+      "AI — checkout (Anthropic)",
+      <span key="aichk" className="text-xs font-mono">
+        {formatAiTokenPair(
+          order.ai_checkout_input_tokens,
+          order.ai_checkout_output_tokens
+        )}
+      </span>,
+    ],
+    [
+      "AI — line items (sum)",
+      <span key="ailns" className="text-xs font-mono">
+        {(() => {
+          const s = sumLineItemsAiTokens(order)
+          return formatAiTokenPair(s.in, s.out)
+        })()}
+      </span>,
+    ],
+    [
+      "AI — order total",
+      <span key="aitot" className="text-xs font-mono font-semibold">
+        {(() => {
+          const s = sumLineItemsAiTokens(order)
+          const ci = order.ai_checkout_input_tokens ?? 0
+          const co = order.ai_checkout_output_tokens ?? 0
+          return formatAiTokenPair(s.in + ci, s.out + co)
+        })()}
+      </span>,
     ],
     [
       "Session URL",
@@ -475,6 +526,9 @@ function LineItemsTab({ order }: { order: Order }) {
                   <TableHead className="w-16">Qty</TableHead>
                   <TableHead className="w-40">Status</TableHead>
                   <TableHead>FS Order</TableHead>
+                  <TableHead className="whitespace-nowrap w-[150px] text-right">
+                    AI (tokens)
+                  </TableHead>
                   <TableHead>Reason / Agent Message</TableHead>
                 </TableRow>
               </TableHeader>
@@ -510,6 +564,14 @@ function LineItemsTab({ order }: { order: Order }) {
                       ) : (
                         <span className="text-xs text-muted-foreground">—</span>
                       )}
+                    </TableCell>
+                    <TableCell className="text-right text-xs font-mono text-muted-foreground align-top">
+                      <span title="Anthropic vision tokens during add-to-cart for this line">
+                        {formatAiTokenPair(
+                          item.ai_input_tokens,
+                          item.ai_output_tokens
+                        )}
+                      </span>
                     </TableCell>
                     <TableCell>
                       {item.agent_message ? (
