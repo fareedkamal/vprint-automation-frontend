@@ -4,6 +4,7 @@ import { useQueryClient } from "@tanstack/react-query"
 import {
   Activity,
   AlertCircle,
+  BarChart2,
   Bug,
   CalendarClock,
   CheckCircle2,
@@ -20,6 +21,16 @@ import {
   XCircle,
   Zap,
 } from "lucide-react"
+import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  Legend,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -33,7 +44,11 @@ import {
   usePipelineControl,
 } from "@/hooks/use-dashboard-api"
 import { cn } from "@/lib/utils"
-import type { OverviewData, PipelineControlOverview } from "@/types/dashboard"
+import type {
+  AiUsageDashboardPayload,
+  OverviewData,
+  PipelineControlOverview,
+} from "@/types/dashboard"
 
 const OVERVIEW_CARD_SKELETON_KEYS = ["oc1", "oc2", "oc3", "oc4"] as const
 const OVERVIEW_STAT_SKELETON_KEYS = [
@@ -580,6 +595,189 @@ function PollerCard({
   )
 }
 
+// ── AI usage (Anthropic vision tokens) ───────────────────────────────────────
+
+function AiUsageTooltip({
+  active,
+  payload,
+  label,
+}: {
+  active?: boolean
+  payload?: ReadonlyArray<{ payload: AiUsageDashboardPayload["series"][0] }>
+  label?: string
+}) {
+  if (!active || !payload?.length) return null
+  const p = payload[0].payload
+  return (
+    <div className="rounded-md border border-border bg-popover px-2.5 py-2 text-xs shadow-md">
+      <div className="font-semibold text-foreground mb-1">{label}</div>
+      <div className="text-muted-foreground">
+        Input:{" "}
+        <span className="font-mono text-foreground">
+          {p.input_tokens.toLocaleString()}
+        </span>
+      </div>
+      <div className="text-muted-foreground">
+        Output:{" "}
+        <span className="font-mono text-foreground">
+          {p.output_tokens.toLocaleString()}
+        </span>
+      </div>
+      <div className="text-muted-foreground mt-0.5">
+        Est. ~${p.estimated_usd.toFixed(4)} · {p.orders_count} order(s)
+      </div>
+    </div>
+  )
+}
+
+function AiUsageSection() {
+  const { data, isLoading, error } = useDashboardQuery<AiUsageDashboardPayload>(
+    "internal/dashboard/ai-usage",
+    { searchParams: { days: 30 }, refetchInterval: 60_000 }
+  )
+
+  return (
+    <section>
+      <h3 className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-3 flex items-center gap-2">
+        <BarChart2 className="h-3.5 w-3.5" />
+        AI usage (Anthropic vision)
+      </h3>
+      <Card className="shadow-sm">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base">Tokens per day</CardTitle>
+          <p className="text-xs text-muted-foreground leading-relaxed">
+            FireSprint line items + checkout vision calls. Dollar estimate uses
+            server pricing (default Opus-style{" "}
+            <span className="font-mono">$5/$25</span> per million in/out unless
+            overridden).
+          </p>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {error && (
+            <p className="text-sm text-red-600 dark:text-red-400">
+              {error.message}
+            </p>
+          )}
+          {isLoading && !data && (
+            <Skeleton className="h-[260px] w-full rounded-lg" />
+          )}
+          {data && (
+            <>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
+                <div className="rounded-lg border border-border p-3">
+                  <div className="text-xs text-muted-foreground">
+                    Window total
+                  </div>
+                  <div className="text-lg font-semibold font-mono">
+                    {data.summary.total_tokens.toLocaleString()}
+                  </div>
+                  <div className="text-[11px] text-muted-foreground">
+                    tokens
+                  </div>
+                </div>
+                <div className="rounded-lg border border-border p-3">
+                  <div className="text-xs text-muted-foreground">
+                    Est. cost (~)
+                  </div>
+                  <div className="text-lg font-semibold">
+                    ${data.summary.estimated_usd.toFixed(2)}
+                  </div>
+                  <div className="text-[11px] text-muted-foreground">
+                    {data.days} days · avg $
+                    {data.summary.avg_daily_estimated_usd.toFixed(2)}/day
+                  </div>
+                </div>
+                <div className="rounded-lg border border-border p-3 col-span-2 sm:col-span-2">
+                  <div className="text-xs text-muted-foreground">
+                    Budget hint (optional)
+                  </div>
+                  {data.budget.credit_balance_usd != null ? (
+                    <div className="mt-1 space-y-0.5">
+                      <div className="font-mono text-sm">
+                        Balance ${data.budget.credit_balance_usd.toFixed(2)} →
+                        est. remaining{" "}
+                        <span className="font-semibold text-green-600 dark:text-green-400">
+                          $
+                          {data.budget.estimated_remaining_usd?.toFixed(2) ??
+                            "—"}
+                        </span>
+                        {data.budget.estimated_equiv_total_tokens_remaining !=
+                          null && (
+                          <span className="text-muted-foreground">
+                            {" "}
+                            (~
+                            {data.budget.estimated_equiv_total_tokens_remaining.toLocaleString()}{" "}
+                            tok @ window avg)
+                          </span>
+                        )}
+                      </div>
+                      {data.budget.note && (
+                        <p className="text-[11px] text-muted-foreground leading-snug">
+                          {data.budget.note}
+                        </p>
+                      )}
+                    </div>
+                  ) : (
+                    <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
+                      {data.budget.note}
+                    </p>
+                  )}
+                </div>
+              </div>
+
+              <div className="h-[260px] w-full min-w-0">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart
+                    data={data.series}
+                    margin={{ top: 8, right: 8, left: 0, bottom: 0 }}
+                  >
+                    <CartesianGrid
+                      strokeDasharray="3 3"
+                      className="stroke-muted"
+                    />
+                    <XAxis
+                      dataKey="date"
+                      tick={{ fontSize: 10 }}
+                      tickFormatter={(d: string) => d.slice(5)}
+                      interval="preserveStartEnd"
+                    />
+                    <YAxis
+                      tick={{ fontSize: 10 }}
+                      tickFormatter={(v) => `${Number(v) / 1000}k`}
+                    />
+                    <Tooltip content={<AiUsageTooltip />} />
+                    <Legend wrapperStyle={{ fontSize: 12 }} />
+                    <Bar
+                      dataKey="input_tokens"
+                      name="Input tokens"
+                      stackId="a"
+                      fill="hsl(217 91% 60%)"
+                      radius={[0, 0, 0, 0]}
+                    />
+                    <Bar
+                      dataKey="output_tokens"
+                      name="Output tokens"
+                      stackId="a"
+                      fill="hsl(142 76% 36%)"
+                      radius={[4, 4, 0, 0]}
+                    />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+
+              <p className="text-[11px] text-muted-foreground leading-relaxed">
+                Model:{" "}
+                <span className="font-mono">{data.pricing.model_hint}</span> ·{" "}
+                {data.attribution}
+              </p>
+            </>
+          )}
+        </CardContent>
+      </Card>
+    </section>
+  )
+}
+
 // ── Main page ─────────────────────────────────────────────────────────────────
 
 export default function DashboardPage() {
@@ -771,6 +969,8 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
       </div>
+
+      <AiUsageSection />
 
       {/* FireSprint lines by status */}
       <section>

@@ -67,6 +67,41 @@ export type OverviewData = {
   pipeline_control?: PipelineControlOverview
 }
 
+/** GET internal/dashboard/ai-usage — Anthropic vision token time series + optional budget */
+export type AiUsageSeriesPoint = {
+  date: string
+  input_tokens: number
+  output_tokens: number
+  total_tokens: number
+  estimated_usd: number
+  orders_count: number
+}
+
+export type AiUsageDashboardPayload = {
+  generated_at: string
+  days: number
+  series: AiUsageSeriesPoint[]
+  summary: {
+    input_tokens: number
+    output_tokens: number
+    total_tokens: number
+    estimated_usd: number
+    avg_daily_estimated_usd: number
+  }
+  pricing: {
+    model_hint: string
+    input_usd_per_million: number
+    output_usd_per_million: number
+  }
+  budget: {
+    credit_balance_usd: number | null
+    estimated_remaining_usd: number | null
+    estimated_equiv_total_tokens_remaining: number | null
+    note: string | null
+  }
+  attribution: string
+}
+
 export type OrderItem = {
   id: string
   order_id: string
